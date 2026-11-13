@@ -1,0 +1,1 @@
+(()=>{const a=__app,n=a.world.nav,F=a.FREE,X=WX; let z=-69.5; for(;z>-80;z-=0.05){ if(n.cls(X,z)===3) break; } const g=n.ground(X,z+1.2); F[0]=X; F[2]=z+DIST; F[1]=g+1.25; F[3]=X+0.25; F[4]=g+1.2; F[5]=z-1; F[6]=50; return JSON.stringify({wallZ:z.toFixed(2),g:g.toFixed(2)});})()

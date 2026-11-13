@@ -1,0 +1,39 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><style>html,body{margin:0;height:100%;background:#777;overflow:hidden}canvas{display:block;width:100%;height:100%}</style></head><body><canvas id="c"></canvas>
+<script type="module">
+import * as THREE from './js/three.module.min.js';
+import { buildPerson, Rig, randomSpec, bakePose, NB } from './js/human.js';
+import { rng } from './js/util.js';
+const qs = new URLSearchParams(location.search), c = document.getElementById('c');
+const renderer = new THREE.WebGLRenderer({ canvas: c, antialias: true }); renderer.setPixelRatio(1); renderer.setSize(innerWidth, innerHeight, false); renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap; renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.0;
+const scene = new THREE.Scene(); scene.background = new THREE.Color(0.55, 0.68, 0.85);
+scene.add(new THREE.HemisphereLight(0xbcd4ff, 0x6a6258, 1.4)); const sun = new THREE.DirectionalLight(0xfff0dd, 3.2); sun.position.set(-3, 6, 4); sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048); const sc = sun.shadow.camera; sc.left = -6; sc.right = 6; sc.top = 4; sc.bottom = -2; sc.near = 0.5; sc.far = 20; sun.shadow.bias = -0.0005; sun.shadow.normalBias = 0.01; scene.add(sun);
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(60, 60), new THREE.MeshStandardMaterial({ color: 0x8f8a80, roughness: 0.95 })); ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; scene.add(ground);
+const mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.85, metalness: 0 });
+mat.onBeforeCompile = sh => {
+  sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nattribute vec4 aFace; varying vec4 vFace; varying vec3 vBind;').replace('#include <begin_vertex>', '#include <begin_vertex>\n vFace = aFace; vBind = position;');
+  sh.fragmentShader = sh.fragmentShader.replace('#include <common>', `#include <common>\nvarying vec4 vFace; varying vec3 vBind; float hAO = 1.0; float ss(float a, float b, float x){ float t = clamp((x - a) / (b - a), 0.0, 1.0); return t * t * (3.0 - 2.0 * t); }`)
+    .replace('#include <color_fragment>', `#include <color_fragment>\n hAO = vColor.a; ${FACE}`)
+    .replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>\n { float mt = floor(vFace.w + 0.5); roughnessFactor = mt < 0.5 ? 0.92 : mt < 1.5 ? 0.60 : mt < 2.5 ? 0.48 : mt < 3.5 ? 0.45 : 0.8; }`)
+    .replace('#include <aomap_fragment>', `#include <aomap_fragment>\n reflectedLight.indirectDiffuse *= hAO; reflectedLight.directDiffuse *= mix(1.0, hAO, 0.3);`);
+};
+const FACE = `{ float mt = floor(vFace.w + 0.5); if (mt > 0.5 && mt < 1.5 && vFace.z > 0.0) { vec2 q = vFace.xy; float k = ss(0.30, 0.62, vFace.z); float ax = abs(q.x);
+  float eye = 1.0 - ss(0.72, 1.08, length(vec2(ax - 0.40, q.y - 0.045) / vec2(0.175, 0.060)));
+  float lid = 1.0 - ss(0.4, 1.25, length(vec2(ax - 0.40, q.y - 0.12) / vec2(0.27, 0.12)));
+  float bx = ax - 0.42; float brow = 1.0 - ss(0.70, 1.10, length(vec2(bx, q.y - 0.245 + 0.9 * bx * bx - 0.04 * bx) / vec2(0.215, 0.034)));
+  float mouth = 1.0 - ss(0.70, 1.10, length(vec2(q.x, q.y + 0.545) / vec2(0.26, 0.030)));
+  float lip = 1.0 - ss(0.35, 1.10, length(vec2(q.x, q.y + 0.56) / vec2(0.25, 0.085)));
+  float nost = 1.0 - ss(0.5, 1.1, length(vec2(ax - 0.085, q.y + 0.335) / vec2(0.055, 0.030)));
+  float cheek = 1.0 - ss(0.2, 1.1, length(vec2(ax - 0.52, q.y + 0.22) / vec2(0.30, 0.22)));
+  vec3 c = diffuseColor.rgb; c = mix(c, c * vec3(1.04, 0.86, 0.84), cheek * 0.35 * k); c = mix(c, c * vec3(0.93, 0.60, 0.58), lip * 0.55 * k); c *= 1.0 - lid * 0.26 * k; c = mix(c, vec3(0.030, 0.024, 0.020), brow * 0.62 * k); c = mix(c, vec3(0.018, 0.014, 0.013), eye * 0.92 * k); c = mix(c, c * vec3(0.42, 0.26, 0.26), mouth * 0.8 * k); c *= 1.0 - nost * 0.45 * k; diffuseColor.rgb = c; } }`;
+const n = +(qs.get('n') || 6), seed = +(qs.get('seed') || 11), rnd = rng(seed), pose = qs.get('pose') || 'bind', rigs = [];
+for (let i = 0; i < n; i++) { const kind = qs.get('kind') || (i % 6 === 5 ? 'jog' : 'walk'), kimo = kind === 'kimono', spec = randomSpec(rnd, kind); if (qs.get('top')) spec.top = qs.get('top'); if (qs.get('bottom')) spec.bottom = qs.get('bottom'); if (qs.get('hair')) spec.hair = qs.get('hair');
+  const P = buildPerson(spec), rig = new Rig(P), x = (i - (n - 1) / 2) * 0.95, yaw = +(qs.get('yaw') || 0); rig.root(x, 0, 0, yaw); rig.spec = spec; rig.jog = kind === 'jog';
+  const m = new THREE.SkinnedMesh(P.geometry, mat); m.bind(rig.skeleton, new THREE.Matrix4()); m.frustumCulled = false; m.castShadow = true; m.receiveShadow = true; scene.add(m); rigs.push(rig); }
+function apply(t) { rigs.forEach((r, i) => { const ph = (qs.get('ph') !== null ? +qs.get('ph') : i * 1.1) + t;
+  if (pose === 'bind') r.bindPose(); else if (pose === 'walk') { const T = r.jog ? 0.70 : 1.04 * Math.sqrt(r.s); r.walk(ph, r.jog ? 2.9 : qs.get('kind') === 'kimono' ? 0.88 : 1.3, T, r.jog, qs.get('kind') === 'kimono' ? { arm: 0.3, bend: 0.25 } : {}); }
+  else if (pose === 'sit') { const s = r.s, m = i % 2, dy = +(qs.get('drop') || 0); r.root(r.x, 0.0 - dy * 0 , 0, +(qs.get('yaw') || 0)); r.sit([[0.10 * s, -dy, (m ? 0.62 : 0.50) * s], [-0.10 * s, -dy, (m ? 0.66 : 0.50) * s]], { mode: m, turn: 0.3 * (i % 3 - 1) }); } }); }
+apply(0);
+const cam = (qs.get('cam') || '0,1.0,4.2,0,0.9,0').split(',').map(Number), camera = new THREE.PerspectiveCamera(+(qs.get('fov') || 35), innerWidth / innerHeight, 0.05, 100); camera.position.set(cam[0], cam[1], cam[2]); camera.lookAt(cam[3], cam[4], cam[5]);
+let t = 0; function frame() { if (qs.get('anim')) { t += 0.12; apply(t); } renderer.render(scene, camera); window.__frames = (window.__frames || 0) + 1; requestAnimationFrame(frame); } frame();
+window.__info = () => JSON.stringify({ tris: renderer.info.render.triangles, calls: renderer.info.render.calls });
+</script></body></html>
