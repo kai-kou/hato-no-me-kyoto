@@ -8,7 +8,12 @@ export const damp = (cur, target, rate, dt) => cur + (target - cur) * (1 - Math.
 export const angDiff = (a, b) => { let d = (b - a) % TAU; if (d > Math.PI) d -= TAU; if (d < -Math.PI) d += TAU; return d; };
 export const dampAng = (cur, target, rate, dt) => cur + angDiff(cur, target) * (1 - Math.exp(-rate * dt));
 export function rng(seed) { let s = seed >>> 0; return () => { s = (s + 0x6D2B79F5) | 0; let t = Math.imul(s ^ (s >>> 15), 1 | s); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
-export const R = Math.random, rr = (a, b) => a + (b - a) * Math.random();
+// ?seed=<number> swaps the shared random source for a seeded one, so that a tally of behaviour can be repeated (the sites, the flock and its choices all draw from R)
+const SEED = typeof location !== 'undefined' ? new URLSearchParams(location.search).get('seed') : null;
+export const R = SEED !== null && Number.isFinite(+SEED) ? rng(+SEED) : Math.random, rr = (a, b) => a + (b - a) * R();
+// a number from the address bar: anything that is not a finite number falls back, and the rest is held inside [lo, hi]
+export const numq = (v, def, lo = -Infinity, hi = Infinity) => { const n = v === null || v === '' ? NaN : +v; return Number.isFinite(n) ? Math.min(hi, Math.max(lo, n)) : def; };
+export const listq = (v, def) => { if (!v) return def; const a = v.split(',').map(Number); return a.every(Number.isFinite) && (!def || a.length >= def.length) ? a : def; };
 
 // ---- pak: deflate-raw( u32 magic, u32 jsonLen, json, payload ) ----
 // data files are addressed relative to where the scripts are actually served from

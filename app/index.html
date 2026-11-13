@@ -14,7 +14,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;700;800&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap" media="print" onload="this.media='all'">
 <style>
-:root { --ink: #14110f; --paper: #f3ede2; --dim: rgba(243, 237, 226, 0.66); --shu: #e2532f; --glass: rgba(20, 17, 15, 0.56); --line: rgba(243, 237, 226, 0.16);
+:root { --ink: #14110f; --paper: #f3ede2; --dim: rgba(243, 237, 226, 0.66); --shu: #e2532f; --glass: rgba(20, 17, 15, 0.64); --line: rgba(243, 237, 226, 0.16);
   --st: env(safe-area-inset-top, 0px); --sb: env(safe-area-inset-bottom, 0px); --sl: env(safe-area-inset-left, 0px); --sr: env(safe-area-inset-right, 0px);
   --sans: system-ui, -apple-system, "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", sans-serif; --serif: "Shippori Mincho", "Hiragino Mincho ProN", "Yu Mincho", "Noto Serif JP", serif; color-scheme: dark; }
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -54,6 +54,8 @@ body.started #hud { opacity: 1; } body.noui #hud { opacity: 0; }
 #top { position: absolute; left: calc(12px + var(--sl)); top: calc(10px + var(--st)); display: flex; align-items: center; gap: 10px; pointer-events: none; }
 #brand { font-family: var(--serif); font-size: 15px; letter-spacing: 0.16em; text-shadow: 0 1px 8px rgba(0, 0, 0, 0.7); }
 #btnTime { pointer-events: auto; display: flex; align-items: baseline; gap: 8px; padding: 6px 12px; border-radius: 999px; font-size: 12px; }
+#btnTime { max-width: calc(100vw - 190px - var(--sl) - var(--sr)); } #clock { flex: none; } #place { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#btnTime::after { flex: none;  content: ""; align-self: center; width: 6px; height: 6px; margin: -3px 1px 0 0; border-right: 1.5px solid var(--dim); border-bottom: 1.5px solid var(--dim); transform: rotate(45deg); transition: transform 0.2s; } #btnTime[aria-expanded=true]::after { transform: rotate(225deg); margin-top: 3px; }
 #clock { font-variant-numeric: tabular-nums; font-weight: 700; font-size: 14px; }
 #place { color: var(--dim); max-width: 44vw; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 #tr { position: absolute; right: calc(10px + var(--sr)); top: calc(8px + var(--st)); display: flex; gap: 8px; }
@@ -63,10 +65,10 @@ body.started #hud { opacity: 1; } body.noui #hud { opacity: 0; }
 @keyframes tapfx { from { transform: scale(0.25); opacity: 0.95; } to { transform: scale(1.25); opacity: 0; } }
 #card { position: absolute; left: calc(12px + var(--sl)); top: calc(56px + var(--st)); width: min(300px, 62vw); padding: 10px 13px 11px; border-radius: 14px; pointer-events: none; }
 #card.flash { animation: fl 0.7s ease; } @keyframes fl { 0% { border-color: var(--shu); } 100% { border-color: var(--line); } }
-#bname { font-size: 11px; color: var(--dim); letter-spacing: 0.06em; }
+#bname { font-size: 11.5px; color: var(--dim); letter-spacing: 0.06em; }
 #bact { font-family: var(--serif); font-size: 19px; margin: 3px 0 4px; letter-spacing: 0.06em; }
-#bnote { font-size: 11.5px; line-height: 1.65; color: rgba(243, 237, 226, 0.86); }
-#stat { margin-top: 6px; font-size: 10.5px; color: var(--dim); letter-spacing: 0.05em; }
+#bnote { font-size: 12px; line-height: 1.65; color: rgba(243, 237, 226, 0.92); }
+#stat { margin-top: 6px; font-size: 11.5px; color: var(--dim); letter-spacing: 0.05em; }
 #dbg { position: absolute; left: 12px; bottom: 150px; font: 11px monospace; color: #9f9; text-shadow: 0 0 3px #000; pointer-events: none; }
 
 #modes { position: absolute; left: 50%; bottom: calc(12px + var(--sb)); transform: translateX(-50%); display: flex; padding: 4px; border-radius: 999px; gap: 2px; max-width: calc(100vw - 16px); }
@@ -88,8 +90,8 @@ body.manual #stick { display: block; }
 #timePanel { left: calc(12px + var(--sl)); top: calc(52px + var(--st)); width: min(330px, calc(100vw - 24px)); z-index: 3; }
 #timePanel input[type=range] { width: 100%; accent-color: var(--shu); margin: 4px 0 10px; }
 .row { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; align-items: center; }
-.row span { color: var(--dim); width: 100%; font-size: 10.5px; letter-spacing: 0.08em; }
-.chip { padding: 6px 11px; border-radius: 999px; border: 1px solid var(--line); font-size: 11.5px; }
+.row span { color: var(--dim); width: 100%; font-size: 11.5px; letter-spacing: 0.08em; }
+.chip { padding: 6px 12px; min-height: 36px; border-radius: 999px; border: 1px solid var(--line); font-size: 12px; }
 .chip.on { background: var(--paper); color: var(--ink); border-color: transparent; font-weight: 700; }
 .modal { position: fixed; inset: 0; z-index: 25; display: none; align-items: center; justify-content: center; background: rgba(8, 7, 6, 0.55); padding: 16px; pointer-events: auto; }
 .modal.on { display: flex; }
@@ -97,11 +99,16 @@ body.manual #stick { display: block; }
 .sheet h2 { font-family: var(--serif); font-size: 19px; letter-spacing: 0.12em; margin: 0 0 8px; }
 .sheet h3 { font-size: 12px; color: var(--shu); letter-spacing: 0.12em; margin: 14px 0 2px; }
 .sheet p { margin: 0 0 6px; color: rgba(243, 237, 226, 0.88); }
-.sheet .x { float: right; width: 34px; height: 34px; border-radius: 50%; border: 1px solid var(--line); }
+.sheet .x { float: right; width: 44px; height: 44px; margin: -8px -8px 0 6px; border-radius: 50%; border: 1px solid var(--line); font-size: 16px; }
+.sheet .fs { float: right; min-height: 44px; margin-top: -8px; padding: 0 13px; border-radius: 999px; border: 1px solid var(--line); font-size: 12px; color: var(--dim); } .sheet .fs[aria-pressed=true] { background: var(--paper); color: var(--ink); border-color: transparent; }
+.sheet .ops { margin: 2px 0 8px; padding: 0; list-style: none; display: grid; gap: 3px; } .sheet .ops li { padding-left: 0.9em; text-indent: -0.9em; color: rgba(243, 237, 226, 0.9); } .sheet .ops li::before { content: "・"; color: var(--shu); margin-right: -0.1em; }
+.sheet details { margin: 10px 0 8px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); padding: 4px 0; } .sheet summary { min-height: 44px; display: flex; align-items: center; cursor: pointer; color: var(--shu); font-size: 12px; letter-spacing: 0.12em; } .sheet .fine { color: var(--dim); font-size: 11.5px; }
+/* the game holds the page still (no pinch zoom), so the sheets carry their own larger type */
+body.big .sheet { font-size: 15.5px; line-height: 1.85; } body.big .sheet h2 { font-size: 22px; } body.big .sheet h3, body.big .sheet summary { font-size: 14px; } body.big .sheet .fine, body.big #ethoList span { font-size: 13.5px; } body.big #ethoList b { font-size: 17px; }
 #ethoList { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 6px; }
 #ethoList li { padding: 8px 10px; border-radius: 10px; border: 1px solid var(--line); opacity: 0.5; }
 #ethoList li.ok { opacity: 1; border-color: rgba(226, 83, 47, 0.5); }
-#ethoList b { display: block; font-family: var(--serif); font-size: 14px; letter-spacing: 0.05em; } #ethoList span { font-size: 11.5px; color: var(--dim); }
+#ethoList b { display: block; font-family: var(--serif); font-size: 14px; letter-spacing: 0.05em; } #ethoList span { font-size: 12px; color: var(--dim); }
 #toast { position: fixed; left: 50%; bottom: calc(72px + var(--sb)); transform: translate(-50%, 8px); z-index: 12; padding: 8px 15px; border-radius: 999px; font-size: 12px; letter-spacing: 0.04em; opacity: 0; transition: opacity 0.3s, transform 0.3s; pointer-events: none; white-space: nowrap; max-width: 92vw; overflow: hidden; text-overflow: ellipsis; }
 #toast.on { opacity: 1; transform: translate(-50%, 0); }
 
@@ -109,9 +116,12 @@ body.manual #stick { display: block; }
 #pano { position: fixed; inset: 0; z-index: 9; pointer-events: none; display: none; }
 body.started[data-mode=eye] #pano { display: block; } #pano .p2, body[data-pano="2"] #pano .p1 { display: none; } body[data-pano="2"] #pano .p2 { display: block; }
 #pano i { position: absolute; top: 0; bottom: 0; width: 1px; background: linear-gradient(180deg, transparent 0%, rgba(243, 237, 226, 0.28) 30%, rgba(243, 237, 226, 0.28) 70%, transparent 100%); }
-#pano b { position: absolute; top: calc(50% + 22vh); transform: translateX(-50%); font-size: 10.5px; font-weight: 500; letter-spacing: 0.12em; color: rgba(243, 237, 226, 0.82); text-shadow: 0 1px 6px rgba(0, 0, 0, 0.9); white-space: nowrap; }
+#pano b { position: absolute; top: calc(50% + 22vh); transform: translateX(-50%); font-size: 11.5px; font-weight: 500; letter-spacing: 0.12em; color: rgba(243, 237, 226, 0.82); text-shadow: 0 1px 6px rgba(0, 0, 0, 0.9); white-space: nowrap; }
 @media (max-height: 460px) { #card { width: min(260px, 40vw); } #bnote { display: none; } #acts { flex-direction: row; bottom: calc(64px + var(--sb)); } .act { min-width: 48px; height: 48px; } #stick { bottom: calc(60px + var(--sb)); width: 104px; height: 104px; } #start { padding-bottom: calc(6vh + var(--sb)); gap: 8px; } }
 @media (max-width: 420px) { #brand { display: none; } #modes button { padding: 9px 10px; font-size: 12px; } }
+/* fingers: every control is at least 44 px tall */
+@media (pointer: coarse) { #modes button { min-height: 44px; } .ic { width: 44px; height: 44px; } .chip { min-height: 44px; padding: 6px 14px; } #btnTime { min-height: 44px; align-items: center; } #timePanel { top: calc(58px + var(--st)); } #card { top: calc(60px + var(--st)); } #timePanel input[type=range] { height: 44px; margin: 0 0 4px; } }
+@media (pointer: coarse) and (max-width: 380px) { #modes button { padding: 9px 8px; } }
 
 /* ---------------------------------------------------------------- landing page (shown before the simulation is loaded)
    plan: one dark world shared with the simulation. ink ground, paper text, vermilion for the one action, the green-to-violet of a pigeon's neck for the field-of-view marks.
@@ -419,20 +429,31 @@ html.lp #lp { display: block; position: fixed; inset: 0; z-index: 60; overflow-x
   <small>音が出ます<br>出典：国土交通省 Project PLATEAU の 3D 都市モデル（京都市、2025 年度）と、国土地理院の地理院タイルを加工して作成</small>
 </div>
 
-<div id="ethoPanel" class="modal"><div class="sheet glass"><button id="ethoClose" class="x">×</button><h2>行動図鑑</h2><p>観察したドバト（カワラバト）の行動が記録されます。</p><ul id="ethoList"></ul></div></div>
-<div id="info" class="modal"><div class="sheet glass"><button id="infoClose" class="x">×</button>
+<div id="ethoPanel" class="modal"><div class="sheet glass"><button id="ethoClose" class="x" aria-label="閉じる">×</button><button class="fs" type="button" aria-pressed="false">文字を大きく</button><h2>行動図鑑</h2><p>観察したドバト（カワラバト）の行動が記録されます。</p><ul id="ethoList"></ul></div></div>
+<div id="info" class="modal"><div class="sheet glass"><button id="infoClose" class="x" aria-label="閉じる">×</button><button class="fs" type="button" aria-pressed="false">文字を大きく</button>
   <h2>鳩の目、京都。</h2>
   <p>京都・先斗町〜鴨川〜祇園白川の実在の街並みを、ドバトの群れと一緒に観察するシミュレーションです。</p>
+  <h3>操作</h3>
+  <ul class="ops">
+    <li><b>地面をタップ</b>：エサをまく</li>
+    <li><b>ハトをタップ</b>：観察する相手を変える</li>
+    <li><b>ドラッグ／ピンチ（ホイール）</b>：回り込む／距離を変える（追う・望遠・俯瞰）</li>
+    <li><b>手をたたく</b>：群れが一斉に飛び立つ</li>
+    <li><b>ハトになる</b>：自分で歩く・飛ぶ（PC は WASD、Space ではばたく、E でついばむ）</li>
+    <li><b>左上の時刻</b>：時間帯・天気・画質を変える（重いときは画質「軽」）</li>
+    <li><b>キーボード</b>：1〜5 視点、N 次のハト、F エサ、C 手をたたく、M ハトになる、H 表示の切替、Esc 閉じる</li>
+  </ul>
   <h3>視点</h3>
-  <p><b>ハトの目</b>：顔の横についた左右の目で見える約320°を1枚に展開。中央の狭い帯（最大約27°）だけが両眼視で、真後ろの約40°が死角です。歩くと景色が「止まる→進む」を繰り返すのは、頭を空間に固定するヘッドボブの再現です。<br><b>追う／望遠／俯瞰</b>：ドラッグで回り込み、ピンチ（ホイール）で距離。<b>シネマ</b>は自動カメラです。</p>
-  <h3>できること</h3>
-  <p>地面をタップでエサをまく／ハトをタップで観察対象を変更／「手をたたく」で一斉飛翔／「ハトになる」で操縦（PC：WASD・Space・E）。左上の時刻から時間帯・天気・画質を変更できます。キーボード：1〜5 視点、N 次のハト、F エサ、C 手をたたく、H 表示切替。</p>
-  <h3>データと作り方</h3>
+  <p><b>ハトの目</b>：顔の横についた左右の目で見える約320°を1枚に展開。中央の狭い帯（最大約27°）だけが両眼視で、真後ろの約40°が死角です。歩くと景色が「止まる→進む」を繰り返すのは、頭を空間に固定するヘッドボブの再現です。<br><b>追う／望遠／俯瞰</b>は観察用のカメラ、<b>シネマ</b>は自動カメラです。</p>
+  <h3>出典</h3>
+  <p>国土交通省 Project PLATEAU 3D都市モデル（京都市 2025年度）、国土地理院 地理院タイル（標高タイル、シームレス空中写真）を加工して作成。内訳は下の「データと作り方」にあります。</p>
+  <details><summary>データと作り方（くわしく）</summary>
   <p>建物・道路・都市設備：国土交通省 Project PLATEAU 3D都市モデル（京都市 2025年度、建築物 LOD3／LOD2・道路 LOD3・都市設備 LOD3・植生 LOD3）。壁面は同データの実写テクスチャです。<br>地形・水面範囲：国土地理院 地理院タイル（標高タイル DEM1A・DEM5A・DEM10B）。地表の写真：地理院タイル（シームレス空中写真）を加工して使用。周囲の建物の屋根の色にも同じ写真を使っています。遠景の地表は同タイルのズームレベル12（データソース：Landsat8画像（GSI,TSIC,GEO Grid/AIST）, Landsat8画像（courtesy of the U.S. Geological Survey）, 海底地形（GEBCO））。砂利・石・草の細部はコードによる生成です。<br>ハト、樹木、鴨川の橋、水面、空、音、そして人と車はすべてコードによる手続き生成です（樹木の位置は PLATEAU の植生データと空中写真、橋の位置は空中写真から）。人は一人ずつ体格・服装・髪型の違う立体をコードで作り、13本の骨で動かしています（顔や指は簡略です）。鴨川名物の「等間隔に座る人たち」、歩く人、走る人、立ち止まる人に加えて、祇園と先斗町には着物姿の人もいます。川端通と四条通の路面は空中写真では車や木がにじむため、アスファルトと車線をコードで描いています。歩行者が近づくとハトは道を空け、走ってくると飛び立ちます。季節は、鴨川の納涼床（例年5月1日〜10月15日）が出ている最後の週にあたる10月中旬に設定しています。桜の葉が色づき始める頃で、太陽の高さと日の出・日の入りもこの時期に合わせています。上空を舞うトビ、行動の頻度、羽色の比率は演出を含みます。ハトの行動は実際のドバトの生態（採餌の時間帯、ねぐら、求愛、水の飲み方など）をもとにモデル化していますが、個体数や行動頻度は観察しやすいよう調整しています。</p>
-  <p style="color:var(--dim);font-size:11px">本作品は上記データを加工して作成したもので、国土交通省・国土地理院・京都市が内容を保証するものではありません。</p>
-  <p style="color:var(--dim);font-size:11px">コードとデータ変換の手順：<a href="https://github.com/kai-kou/hato-no-me-kyoto" target="_blank" rel="noopener" style="color:inherit">github.com/kai-kou/hato-no-me-kyoto</a></p>
-  <p style="color:var(--dim);font-size:11px"><a href="./" id="toLp" style="color:inherit">紹介ページへ戻る</a></p>
-  <p id="diag" style="color:var(--dim);font-size:11px"></p>
+  </details>
+  <p class="fine">本作品は上記データを加工して作成したもので、国土交通省・国土地理院・京都市が内容を保証するものではありません。</p>
+  <p class="fine">コードとデータ変換の手順：<a href="https://github.com/kai-kou/hato-no-me-kyoto" target="_blank" rel="noopener" style="color:inherit">github.com/kai-kou/hato-no-me-kyoto</a></p>
+  <p class="fine"><a href="./" id="toLp" style="color:inherit">紹介ページへ戻る</a></p>
+  <p id="diag" class="fine"></p>
 </div></div>
 
 <div id="lost"><p id="lostMsg"></p><button id="lostBtn">再開する</button></div>
@@ -476,8 +497,13 @@ html.lp #lp { display: block; position: fixed; inset: 0; z-index: 60; overflow-x
   if (!con.saveData && window.WebGL2RenderingContext) { var phone = (window.matchMedia && matchMedia('(pointer: coarse)').matches) || /Mobi|Android|iPhone|iPad/.test(navigator.userAgent), all = !phone || con.type === 'wifi' || con.type === 'ethernet';
     var early = function () { if (window.__hatoBooted) return; preload('d/nav.txt'); preload('t/b.txt'); if (all) preload('d/core.txt'); };
     if (d.readyState === 'complete') setTimeout(early, 2500); else addEventListener('load', function () { setTimeout(early, 2500); }); }
-  // the opening screen plays footage of the simulation: silent, only while it is in view, and not at all when the visitor asked for less motion or less data
-  var v = lp.querySelector('.lp-screen video'), calm = (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) || (navigator.connection && navigator.connection.saveData);
+  // say what the press will cost on this connection: with the read-ahead most of the 21 MB is already here, a phone not known to be on Wi-Fi has only the first 4 MB, and a visitor saving data has none of it
+  (function () { var ph = (window.matchMedia && matchMedia('(pointer: coarse)').matches) || /Mobi|Android|iPhone|iPad/.test(navigator.userAgent), wide = !ph || con.type === 'wifi' || con.type === 'ethernet';
+    var t = con.saveData ? 'データ節約の指定があるため先読みはしません。押してから約 21 MB を読み込みます。音が出ます。' : wide ? '' : 'スマートフォンでは、押してから約 17 MB を読み込みます（先読みと合わせて約 21 MB）。音が出ます。'; if (!t) return;
+    var ns = lp.querySelectorAll('.lp-screen .note'); for (var k = 0; k < ns.length; k++) ns[k].textContent = (k === 0 ? '押すと、この街がブラウザの中で動きはじめます。' : '') + t;
+    var bs = lp.querySelectorAll('.lp-screen[data-go]'); for (var j = 0; j < bs.length; j++) bs[j].setAttribute('aria-label', '作品をはじめる。' + t); })();
+  // the opening screen plays footage of the simulation: silent, only while it is in view, and not at all when the visitor asked for less motion or less data, or is known to be on a mobile network (the footage is 1.8 MB on a phone)
+  var v = lp.querySelector('.lp-screen video'), calm = (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) || con.saveData || con.type === 'cellular' || /^(slow-2g|2g|3g)$/.test(con.effectiveType || '');
   if (v && !calm) { var play = function () { var p = v.play(); if (p && p.catch) p.catch(function () { }); }; v.muted = true; v.src = Math.min(innerWidth, innerHeight) < 600 ? v.getAttribute('data-src-s') : v.getAttribute('data-src'); play();
     if ('IntersectionObserver' in window) new IntersectionObserver(function (es) { for (var k = 0; k < es.length; k++) { if (es[k].isIntersecting) play(); else v.pause(); } }, { root: lp, threshold: 0.15 }).observe(v); }
 })();

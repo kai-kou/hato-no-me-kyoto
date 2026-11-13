@@ -2,6 +2,7 @@
 import * as THREE from './three.module.min.js';
 import { World, U } from './world.js';
 import { Post } from './post.js';
+import { numq, listq } from './util.js';
 
 const qs = new URLSearchParams(location.search), $ = id => document.getElementById(id);
 const coarse = matchMedia('(pointer: coarse)').matches, mem = navigator.deviceMemory || 4, cores = navigator.hardwareConcurrency || 4;
@@ -15,7 +16,7 @@ const TIERS = {
   mid: { pbr: true, msaa: 2, scale: 0.75, maxPR: 2, shadow: 1536, shadowRange: 60, aniso: 4, texMax: 2, texU: 0, texH: 46, texM: 150, texConc: 2, terrainStep: 2, bloomLv: 4, dof: true, dofTaps: 18, refl: false, panoSize: 512, birds: 70, bsh: 768, bao: 192, leaf: 0.6, shadowEvery: 3, cover: 0.6 },
   low: { pbr: false, msaa: 0, scale: 0.6, maxPR: 2, shadow: 1024, shadowRange: 42, aniso: 2, texMax: 2, texU: 0, texH: 30, texM: 110, texConc: 2, terrainStep: 4, bloomLv: 3, dof: false, dofTaps: 12, refl: false, panoSize: 384, birds: 46, bsh: 512, bao: 128, leaf: 0.35, shadowEvery: 4, cover: 0 },
 };
-const tier = TIERS[pickTier()] ? pickTier() : 'high', Q = { tier, ...TIERS[tier] }; if (qs.get('scale')) Q.scale = +qs.get('scale'); if (qs.get('tex')) { Q.texMax = 3; Q.texU = +qs.get('tex') || 24; } const REC = +(qs.get('rec') || 0); // rec = frames per second: fixed time step, one frame per window.__next (used to capture clips)
+const tier = TIERS[pickTier()] ? pickTier() : 'high', Q = { tier, ...TIERS[tier] }; if (qs.get('scale')) Q.scale = numq(qs.get('scale'), Q.scale, 0.2, 2); if (qs.get('tex')) { Q.texMax = 3; Q.texU = numq(qs.get('tex'), 24, 1, 64) | 0; } const REC = numq(qs.get('rec'), 0, 0, 120); // rec = frames per second: fixed time step, one frame per window.__next (used to capture clips)
 const canvas = $('c');
 let renderer; try { renderer = new THREE.WebGLRenderer({ canvas, antialias: false, alpha: false, powerPreference: 'high-performance', stencil: false }); } catch (e) { const el = $('err'); if (el) { el.textContent = 'この端末・ブラウザでは WebGL2 を使えないため表示できません。'; el.style.display = 'block'; } throw e; }
 // restart at another quality level: the stored choice when storage works, otherwise carried in the address
@@ -27,7 +28,7 @@ canvas.addEventListener('webglcontextlost', e => { e.preventDefault(); if (app.l
 renderer.setClearColor(0x000000, 1); renderer.toneMapping = THREE.NoToneMapping; renderer.outputColorSpace = THREE.SRGBColorSpace; renderer.shadowMap.enabled = Q.shadow > 0; renderer.shadowMap.type = THREE.PCFSoftShadowMap; renderer.info.autoReset = false;
 const scene = new THREE.Scene(), camera = new THREE.PerspectiveCamera(60, 1, 0.03, 30000);
 const post = new Post(renderer, Q), world = new World(renderer, scene, Q);
-const app = { Q, qs, renderer, scene, camera, post, world, hour: +(qs.get('t') || 9.6), timeScale: +(qs.get('ts') || 0), focus: new THREE.Vector3(-70, 0, 0), ready: false, drs: 1, expoK: 1, pano: null };
+const app = { Q, qs, renderer, scene, camera, post, world, hour: numq(qs.get('t'), 9.6, 0, 23.999), timeScale: numq(qs.get('ts'), 0, 0, 100000), focus: new THREE.Vector3(-70, 0, 0), ready: false, drs: 1, expoK: 1, pano: null };
 app.restartAt = restartAt; window.__app = app;
 
 function resize() { const pr = Math.min(window.devicePixelRatio || 1, Q.maxPR) * Q.scale * app.drs, w = Math.max(2, Math.round(innerWidth * pr)), h = Math.max(2, Math.round(innerHeight * pr)); renderer.setSize(w, h, false); post.setSize(w, h); camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); }
@@ -82,7 +83,7 @@ function chunkStatic(root, minTris = 40000, minR = 60) {
   try {
     await world.load(onProg, app.stage); world.setHour(app.hour);
     U.uWet.value = +(qs.get('wet') || 0);
-    const c = (qs.get('cam') || '-66,1.2,40,-80,2.5,-40').split(',').map(Number); camera.position.set(c[0], c[1], c[2]); camera.lookAt(c[3], c[4], c[5]); app.focus.set(c[0], 0, c[2]); if (qs.get('fov')) { camera.fov = +qs.get('fov'); camera.updateProjectionMatrix(); }
+    const c = listq(qs.get('cam'), [-66, 1.2, 40, -80, 2.5, -40]); camera.position.set(c[0], c[1], c[2]); camera.lookAt(c[3], c[4], c[5]); app.focus.set(c[0], 0, c[2]); if (qs.get('fov')) { camera.fov = +qs.get('fov'); camera.updateProjectionMatrix(); }
     if (qs.get('refl')) app.reflY = +qs.get('refl');
     if (qs.get('dof')) { const d = qs.get('dof').split(',').map(Number); post.opts.dofOn = true; post.opts.focus = d[0]; post.opts.aperture = d[1]; }
     const mod = await import('./game.js'); await mod.start(app);

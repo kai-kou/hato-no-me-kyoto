@@ -24,7 +24,7 @@ export class Flock {
   }
   // ---------------------------------------------------------------- environment knowledge
   _sites() {
-    const nav = this.nav, c = nav.core, S = [], perches = [], shore = [], decks = [], eaves = [];
+    const nav = this.nav, c = nav.core, S = [], perches = [], shore = [], shore2 = [], decks = [], eaves = [];
     const ok = (x, z) => nav.walkable(x, z) && nav.cls(x, z) !== 1;
     const add = (x, z, r, n, w) => { if (ok(x, z)) S.push({ x, z, r, n, w, y: nav.ground(x, z) }); };
     for (const z of [-28, 22, -78, 70, -130, 118, -185]) add(-66 + (z < -100 ? 2 : 0), z, 7, '鴨川 西岸の河川敷', 3);
@@ -36,9 +36,11 @@ export class Flock {
     this.sites = S;
     // perches: roof edges (building top next to a lower cell), decks / fences (furniture tops)
     for (let j = 3; j < c.h - 3; j += 3) for (let i = 3; i < c.w - 3; i += 3) { const k = j * c.w + i, t = nav.T[k]; const x = c.x0 + (i + 0.5) * c.res, z = c.z0 + (j + 0.5) * c.res;
-      if (t !== -32768) { const y = t / 100, g = nav.G[k] / 100; if (y - g < 2.2 || y - g > 22) continue; let edge = false; for (const [a, b] of [[2, 0], [-2, 0], [0, 2], [0, -2]]) { const q = nav.T[(j + b) * c.w + i + a]; if (q === -32768 || q / 100 < y - (y - g < 3.5 ? 1.6 : 2.5)) { edge = true; break; } } if (edge) { if (y - g < 3.5) eaves.push({ x, y, z }); else if (Math.random() < 0.5) perches.push({ x, y, z }); } }
-      else { const f = nav.F[k]; if (f !== -32768) { const y = f / 100, g = nav.G[k] / 100; if (y - g > 0.9 && y - g < 6 && Math.random() < 0.35) decks.push({ x, y, z }); } }
-      if (nav.C[k] === 1 && nav.W[k] - nav.G[k] <= 6 && x < -40 && Math.random() < 0.3) shore.push({ x, z, y: nav.W[k] / 100 }); }   /* the water's edge: the shallowest cells, 6 cm deep (compared in whole centimetres: as metres the test came down to float rounding and passed 11 of the 78 cells) */
+      if (t !== -32768) { const y = t / 100, g = nav.G[k] / 100; if (y - g < 2.2 || y - g > 22) continue; let edge = false; for (const [a, b] of [[2, 0], [-2, 0], [0, 2], [0, -2]]) { const q = nav.T[(j + b) * c.w + i + a]; if (q === -32768 || q / 100 < y - (y - g < 3.5 ? 1.6 : 2.5)) { edge = true; break; } } if (edge) { if (y - g < 3.5) eaves.push({ x, y, z }); else if (R() < 0.5) perches.push({ x, y, z }); } }
+      else { const f = nav.F[k]; if (f !== -32768) { const y = f / 100, g = nav.G[k] / 100; if (y - g > 0.9 && y - g < 6 && R() < 0.35) decks.push({ x, y, z }); } }
+      if (nav.C[k] === 1 && nav.W[k] - nav.G[k] <= 6 && x < -40) shore.push({ x, z, y: nav.W[k] / 100 }); else if (nav.C[k] === 1 && nav.W[k] - nav.G[k] <= 30 && x < -40) shore2.push({ x, z, y: nav.W[k] / 100 }); }   /* the water's edge: the shallowest cells, 6 cm deep (compared in whole centimetres: as metres the test came down to float rounding and passed 11 of the 78 cells) */
+    // every cell of the water's edge is kept (a bird samples twelve of them and takes the nearest); with none at 6 cm the 30 cm band stands in, and an empty list is said aloud instead of silently dropping drinking and bathing
+    if (!shore.length) { shore.push(...shore2); console.warn('flock: no cell at the water\'s edge, using the 30 cm band (' + shore2.length + ')'); } if (!shore.length) console.warn('flock: no shore at all, drinking and bathing are off');
     this.perches = perches; this.decks = decks; this.shore = shore; this.eaves = eaves;
     for (const s of S) { s.perch = perches.filter(p => Math.hypot(p.x - s.x, p.z - s.z) < 75).concat(decks.filter(p => Math.hypot(p.x - s.x, p.z - s.z) < 60)); if (!s.perch.length) s.perch = perches.slice(0, 50); }
     for (const s of S) for (let k = 0; k < 22 * s.w; k++) this._crumb(s);

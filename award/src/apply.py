@@ -29,8 +29,8 @@ rep('</style>\n</head>', css + '</style>\n</head>')
 rep('<body data-mode="cine">\n', '<body data-mode="cine">\n' + html)
 # the simulation's own page
 rep('<span>時刻（京都・11月12日）</span>', '<span>時刻（京都・10月中旬）</span>')
-rep('''  <p id="diag" style="color:var(--dim);font-size:11px"></p>''', '''  <p style="color:var(--dim);font-size:11px"><a href="./" id="toLp" style="color:inherit">紹介ページへ戻る</a></p>
-  <p id="diag" style="color:var(--dim);font-size:11px"></p>''')
+rep('''  <p id="diag" class="fine"></p>''', '''  <p class="fine"><a href="./" id="toLp" style="color:inherit">紹介ページへ戻る</a></p>
+  <p id="diag" class="fine"></p>''')
 # scripts: the watchdog starts with the simulation, and the simulation starts either at once or from the landing page
 i0 = s.index('<script>\n// show a readable message if the scripts or data cannot be loaded'); i1 = s.index('</body>')
 s = s[:i0] + '''<script>
@@ -72,8 +72,13 @@ s = s[:i0] + '''<script>
   if (!con.saveData && window.WebGL2RenderingContext) { var phone = (window.matchMedia && matchMedia('(pointer: coarse)').matches) || /Mobi|Android|iPhone|iPad/.test(navigator.userAgent), all = !phone || con.type === 'wifi' || con.type === 'ethernet';
     var early = function () { if (window.__hatoBooted) return; preload('d/nav.txt'); preload('t/b.txt'); if (all) preload('d/core.txt'); };
     if (d.readyState === 'complete') setTimeout(early, 2500); else addEventListener('load', function () { setTimeout(early, 2500); }); }
-  // the opening screen plays footage of the simulation: silent, only while it is in view, and not at all when the visitor asked for less motion or less data
-  var v = lp.querySelector('.lp-screen video'), calm = (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) || (navigator.connection && navigator.connection.saveData);
+  // say what the press will cost on this connection: with the read-ahead most of the 21 MB is already here, a phone not known to be on Wi-Fi has only the first 4 MB, and a visitor saving data has none of it
+  (function () { var ph = (window.matchMedia && matchMedia('(pointer: coarse)').matches) || /Mobi|Android|iPhone|iPad/.test(navigator.userAgent), wide = !ph || con.type === 'wifi' || con.type === 'ethernet';
+    var t = con.saveData ? 'データ節約の指定があるため先読みはしません。押してから約 21 MB を読み込みます。音が出ます。' : wide ? '' : 'スマートフォンでは、押してから約 17 MB を読み込みます（先読みと合わせて約 21 MB）。音が出ます。'; if (!t) return;
+    var ns = lp.querySelectorAll('.lp-screen .note'); for (var k = 0; k < ns.length; k++) ns[k].textContent = (k === 0 ? '押すと、この街がブラウザの中で動きはじめます。' : '') + t;
+    var bs = lp.querySelectorAll('.lp-screen[data-go]'); for (var j = 0; j < bs.length; j++) bs[j].setAttribute('aria-label', '作品をはじめる。' + t); })();
+  // the opening screen plays footage of the simulation: silent, only while it is in view, and not at all when the visitor asked for less motion or less data, or is known to be on a mobile network (the footage is 1.8 MB on a phone)
+  var v = lp.querySelector('.lp-screen video'), calm = (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) || con.saveData || con.type === 'cellular' || /^(slow-2g|2g|3g)$/.test(con.effectiveType || '');
   if (v && !calm) { var play = function () { var p = v.play(); if (p && p.catch) p.catch(function () { }); }; v.muted = true; v.src = Math.min(innerWidth, innerHeight) < 600 ? v.getAttribute('data-src-s') : v.getAttribute('data-src'); play();
     if ('IntersectionObserver' in window) new IntersectionObserver(function (es) { for (var k = 0; k < es.length; k++) { if (es[k].isIntersecting) play(); else v.pause(); } }, { root: lp, threshold: 0.15 }).observe(v); }
 })();

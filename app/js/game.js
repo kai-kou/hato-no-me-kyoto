@@ -7,7 +7,7 @@ import { Sound } from './audio.js';
 import { buildScenery } from './scenery.js';
 import { People, Traffic } from './life.js';
 import { Cover } from './cover.js';
-import { clamp, lerp, damp, dampAng, angDiff, smooth, TAU, rr, R } from './util.js';
+import { clamp, lerp, damp, dampAng, angDiff, smooth, TAU, rr, R, numq, listq } from './util.js';
 
 const $ = id => document.getElementById(id), V = () => new THREE.Vector3();
 const DEGR = 180 / Math.PI;
@@ -38,7 +38,7 @@ const MODE_HINT = { eye: 'ハトの視野（約320°）を1枚に展開', chase:
 export async function start(app) {
   const { Q, qs, scene, world, camera, post, renderer } = app, nav = world.nav;
   const stage = app.stage || (async () => { }); await stage('birds', 'ハトの群れを配置中');
-  const KITES = qs.get('studio') ? 0 : 3, birds = new Birds(scene, Q, +(qs.get('n') || Q.birds), KITES), flock = new Flock(app, birds); app.birds = birds; app.flock = flock;
+  const KITES = qs.get('studio') ? 0 : 3, birds = new Birds(scene, Q, numq(qs.get('n'), Q.birds, 2, 240) | 0, KITES), flock = new Flock(app, birds); app.birds = birds; app.flock = flock;
   if (qs.get('studio')) return studio(app, flock);
   const shadows = new BirdShadow(renderer, scene, birds, Q);
   const crumbs = new Crumbs(scene, cityMaterial('frnp', Q, { rough: 0.9, uniforms: { uTint: { value: new THREE.Color(0.78, 0.66, 0.44) }, uGrain: { value: 0.25 } } }));
@@ -69,7 +69,7 @@ export async function start(app) {
   const input = { mx: 0, my: 0, flap: false, peck: false, keys: {} };
   try { S.seen = JSON.parse(localStorage.getItem('hato.seen') || '{}'); } catch (e) { }
   app.S = S; app.ORB = ORB;
-  if (qs.get('orb')) { const o = qs.get('orb').split(',').map(Number), t = ORB[S.mode] || ORB.tele; t.yaw = o[0]; t.pitch = o[1]; t.dist = o[2]; }
+  if (qs.get('orb')) { const o = listq(qs.get('orb'), null), t = ORB[S.mode] || ORB.tele; if (o && o.length >= 3) { t.yaw = o[0]; t.pitch = o[1]; t.dist = clamp(o[2], 0.05, 4000); } }
   if (qs.get('f')) S.focus = clamp(+qs.get('f') | 0, 0, flock.n - 1);
   const B = () => flock.B[S.focus];
   const dirOf = (yaw, pitch, o) => o.set(Math.sin(yaw) * Math.cos(pitch), -Math.sin(pitch), Math.cos(yaw) * Math.cos(pitch));
@@ -107,10 +107,12 @@ export async function start(app) {
   app.feedAt = feedAt;
   function clap() { const b = B(), p = cam.look; try { snd.clap(); } catch (e) { } const n = flock.scare(p.x, p.z, 17, true); if (!n) toast('近くに地上のハトがいません'); }
   // messages take turns: one that has just appeared is not overwritten by the next (a reply to a tap would vanish behind an ethogram note in the same frame)
-  function toast(msg) { const el = $('toast'); if (!el || !msg) return; const T = toast.s || (toast.s = { q: [], on: false, at: 0, t: 0 });
-    if (T.q[T.q.length - 1] === msg || (T.on && !T.q.length && el.textContent === msg)) return; T.q.push(msg); if (T.q.length > 3) T.q.shift();
-    const show = () => { const m = T.q.shift(); if (m === undefined) { el.classList.remove('on'); T.on = false; return; } T.on = true; T.at = performance.now(); el.textContent = m; el.classList.add('on'); T.t = setTimeout(show, T.q.length ? 2400 : 3600); };
-    if (!T.on) show(); else { clearTimeout(T.t); T.t = setTimeout(show, Math.max(0, 2000 - (performance.now() - T.at))); } }
+  function toast(msg, low) { const el = $('toast'); if (!el || !msg) return; const T = toast.s || (toast.s = { q: [], on: false, at: 0, t: 0, low: false });
+    if (T.q.some(m => m[0] === msg) || (T.on && !T.q.length && el.textContent === msg)) return;
+    // a reply to something the visitor just did goes ahead of the ethogram notes, and replaces one that is on screen
+    if (!low) T.q = T.q.filter(m => !m[1]); T.q.push([msg, !!low]); if (T.q.length > 3) T.q.shift();
+    const show = () => { const m = T.q.shift(); if (m === undefined) { el.classList.remove('on'); T.on = false; return; } T.on = true; T.low = m[1]; T.at = performance.now(); el.textContent = m[0]; el.classList.add('on'); T.t = setTimeout(show, T.q.length ? 2400 : 3600); };
+    if (!T.on) show(); else { clearTimeout(T.t); T.t = setTimeout(show, !low && T.low ? 0 : Math.max(0, 2000 - (performance.now() - T.at))); } }
 
   // ---------------------------------------------------------------- manual flight / walking
   flock.manualStep = (b, dt) => {
@@ -162,7 +164,7 @@ export async function start(app) {
   function clearCam(look, pos) { // pull the camera towards the subject while it is inside a building footprint
     for (let i = 0; i < 6; i++) { const rf = nav.roof(pos.x, pos.z); if (rf > pos.y - 0.2 && nav.cls(pos.x, pos.z) === 3) pos.lerp(look, 0.3); else break; }
     const g = Math.max(nav.ground(pos.x, pos.z), nav.waterY(pos.x, pos.z)); if (pos.y < g + 0.07) pos.y = g + 0.07; }
-  const FREE = qs.get('free') ? qs.get('free').split(',').map(Number) : null; app.FREE = FREE; app.kites = kites;
+  const FREE = (f => f && f.length >= 6 ? f : null)(listq(qs.get('free'), null)); app.FREE = FREE; app.kites = kites;
   function rig(dt) {
     if (FREE) { app.pano = null; camera.position.set(FREE[0], FREE[1], FREE[2]); camera.up.set(0, 1, 0); camera.lookAt(FREE[3], FREE[4], FREE[5]); if (FREE[6] && camera.fov !== FREE[6]) { camera.fov = FREE[6]; camera.updateProjectionMatrix(); } cam.pos.copy(camera.position); cam.look.set(FREE[3], FREE[4], FREE[5]); app.focus.copy(cam.look); S.camDist = cam.pos.distanceTo(cam.look); post.opts.dofOn = false; return; }
     const b = B(), P = b.pose, mode = S.mode === 'cine' ? (S.shot ? S.shot.k : 'low') : S.mode; let pos = tA, look = tB, fov = 50, kPos = 8, kLook = 10, dofK = 0, focusD = 5;
@@ -206,7 +208,7 @@ export async function start(app) {
   }
   function mark(k) { if (S.seen[k] || !S.started) return; S.seen[k] = 1; try { localStorage.setItem('hato.seen', JSON.stringify(S.seen)); } catch (e) { } ui.etho(k); }
 
-  const clapAt = +(qs.get('clapAt') || 0);
+  const clapAt = numq(qs.get('clapAt'), 0, 0, 1e6);
   app.tick = dt => {
     S.t += dt; if (clapAt && S.t >= clapAt && !S.clapped) { S.clapped = true; flock.scare(B().x, B().z, 24, true); }
     for (const q of flock.B) { q.pose.hide = false; if (q.callT !== undefined) { q.callT -= dt; if (q.callT <= 0) { q.callT = undefined; if (!q.manual && q.st !== 'court' && q.st !== 'roost' && !(q.air && q.next === 'roost')) { const s = q.callS, d = Math.hypot(q.x - s.x, q.z - s.z); q.site = s; if (q.air || d > 5 || Math.abs(q.y - s.y) > 0.5) { const g = flock._groundPoint(s, q.air ? 2.2 : 1.6); flock.flyTo(q, g.x, g.y, g.z, 'forage'); } else { q.st = 'forage'; q.pause = 0; } } } } }
@@ -264,6 +266,8 @@ export async function start(app) {
       dir.copy(pF).multiplyScalar(Math.cos(pit) * Math.cos(yaw)).addScaledVector(pR, Math.cos(pit) * Math.sin(yaw)).addScaledVector(pU, Math.sin(pit)).normalize(); return { o: pE, ppr }; }
     dir.set(u * 2 - 1, v * 2 - 1, 0.5).unproject(camera).sub(camera.position).normalize(); return { o: camera.position, ppr: r.height / 2 / Math.tan(camera.fov * 0.5 / DEGR) }; }
   const tapFx = (px, py) => { const el = document.createElement('i'); el.className = 'tapfx'; el.style.left = px + 'px'; el.style.top = py + 'px'; document.body.appendChild(el); setTimeout(() => el.remove(), 560); };
+  // for the checks: where a tap at this screen point would land (ground point, wall, or nothing)
+  app.tapProbe = (px, py) => { const dir = tapDir, ray = tapRay(px, py, dir), o = ray.o; let t = 0.2; for (let i = 0; i < 400 && t < 900; i++) { const x = o.x + dir.x * t, y = o.y + dir.y * t, z = o.z + dir.z * t; if (y <= nav.ground(x, z)) return { hit: [+x.toFixed(2), +z.toFixed(2)], t: +t.toFixed(2), walk: nav.walkable(x, z), cls: nav.cls(x, z) }; const rf = nav.roof(x, z); if (rf > -900 && y < rf - 0.05 && !nav.walkable(x, z)) return { wall: true, t: +t.toFixed(2) }; t += Math.max(0.04, t * 0.03); } return { none: true, dir: [+dir.x.toFixed(2), +dir.y.toFixed(2), +dir.z.toFixed(2)], o: [+o.x.toFixed(1), +o.y.toFixed(2), +o.z.toFixed(1)] }; };
   function tap(px, py) {
     if (!S.started) return; const dir = tapDir, ray = tapRay(px, py, dir), o = ray.o; tapFx(px, py);
     // a pigeon under the finger: within 40 px, or within its own apparent size when it is close
@@ -272,19 +276,19 @@ export async function start(app) {
     if (best >= 0) { setFocus(best); const b = B(); toast(`観察する相手を変更：No.${String(b.i + 1).padStart(2, '0')}　${b.morph.n}　${b.male ? '♂' : '♀'}`); return; }
     // otherwise the ground under the finger; a wall or a roof in the way stops the throw
     let t = 0.2, hit = null, wall = false;
-    for (let i = 0; i < 400 && t < 900; i++) { const x = o.x + dir.x * t, y = o.y + dir.y * t, z = o.z + dir.z * t; if (y <= nav.ground(x, z)) { hit = [x, z]; break; } const rf = nav.roof(x, z); if (rf > -900 && y < rf - 0.05) { wall = true; break; } t += Math.max(0.04, t * 0.03); }
+    for (let i = 0; i < 400 && t < 900; i++) { const x = o.x + dir.x * t, y = o.y + dir.y * t, z = o.z + dir.z * t; if (y <= nav.ground(x, z)) { hit = [x, z]; break; } const rf = nav.roof(x, z); if (rf > -900 && y < rf - 0.05 && !nav.walkable(x, z)) { wall = true; break; }   /* under a deck on stilts or an eave the ground is open: only a roof with no walkable ground below stops the throw */ t += Math.max(0.04, t * 0.03); }
     if (hit) { const msg = feedAt(hit[0], hit[1]); if (msg) toast(msg); } else if (wall) toast('建物にはまけない。地面をタップ');
   }
-  addEventListener('keydown', e => { if (e.repeat) return; input.keys[e.code] = true; const k = e.code; if (k.startsWith('Digit')) { const m = MODES[+k.slice(5) - 1]; if (m) setMode(m); } else if (k === 'KeyN') nextBird(); else if (k === 'KeyF') feedFront(); else if (k === 'KeyC') clap(); else if (k === 'KeyM') setManual(!S.manual); else if (k === 'KeyH') { S.ui = !S.ui; document.body.classList.toggle('noui', !S.ui); } if (k === 'Space') e.preventDefault(); });
+  addEventListener('keydown', e => { if (e.repeat) return; input.keys[e.code] = true; const k = e.code; if (k.startsWith('Digit')) { const m = MODES[+k.slice(5) - 1]; if (m) setMode(m); } else if (k === 'KeyN') nextBird(); else if (k === 'KeyF') feedFront(); else if (k === 'KeyC') clap(); else if (k === 'KeyM') setManual(!S.manual); else if (k === 'KeyH') { S.ui = !S.ui; document.body.classList.toggle('noui', !S.ui); } if (k === 'Space' && !document.querySelector('.modal.on')) e.preventDefault(); });
   addEventListener('keyup', e => { input.keys[e.code] = false; });
   function feedFront() { const b = B(), d = b.air ? 0 : rr(0.5, 1.1), x = (b.air ? cam.look.x : b.x) + Math.sin(b.yaw) * d, z = (b.air ? cam.look.z : b.z) + Math.cos(b.yaw) * d; const msg = feedAt(x, z); if (msg) toast(msg); }
 
   // ---------------------------------------------------------------- HUD
   const ui = {
-    modes() { document.querySelectorAll('#modes button').forEach(el => el.classList.toggle('on', el.dataset.m === S.mode)); document.body.dataset.mode = S.mode; },
-    manual() { document.body.classList.toggle('manual', S.manual); const el = $('btnFly'); if (el) el.classList.toggle('on', S.manual); },
+    modes() { document.querySelectorAll('#modes button').forEach(el => { const o = el.dataset.m === S.mode; el.classList.toggle('on', o); el.setAttribute('aria-pressed', o ? 'true' : 'false'); }); document.body.dataset.mode = S.mode; },
+    manual() { document.body.classList.toggle('manual', S.manual); const el = $('btnFly'); if (el) { el.classList.toggle('on', S.manual); el.setAttribute('aria-pressed', S.manual ? 'true' : 'false'); el.innerHTML = S.manual ? '観察に<br>もどる' : 'ハトに<br>なる'; } },
     card(flash) { const b = B(), e = ETHO[S.act] || ETHO.look; $('bname').textContent = `No.${String(b.i + 1).padStart(2, '0')}　${b.morph.n}　${b.male ? '♂' : '♀'}`; $('bact').textContent = e[0]; $('bnote').textContent = e[1]; if (flash) { const c = $('card'); c.classList.remove('flash'); void c.offsetWidth; c.classList.add('flash'); } },
-    etho(k) { const n = ETHO_KEYS.filter(x => S.seen[x]).length; $('ethoN').textContent = `${n}/${ETHO_KEYS.length}`; if (k) { toast(`行動図鑑に追加：${ETHO[k][0]}`); if (n === ETHO_KEYS.length) setTimeout(() => toast('行動図鑑コンプリート！'), 2800); } const L = $('ethoList'); if (L) L.innerHTML = ETHO_KEYS.map(x => `<li class="${S.seen[x] ? 'ok' : ''}"><b>${S.seen[x] ? ETHO[x][0] : '？？？'}</b><span>${S.seen[x] ? ETHO[x][1] : 'まだ観察していない行動'}</span></li>`).join(''); },
+    etho(k) { const n = ETHO_KEYS.filter(x => S.seen[x]).length; $('ethoN').textContent = `${n}/${ETHO_KEYS.length}`; if (k) { toast(`行動図鑑に追加：${ETHO[k][0]}`, true); if (n === ETHO_KEYS.length) setTimeout(() => toast('行動図鑑コンプリート！'), 2800); } const L = $('ethoList'); if (L) L.innerHTML = ETHO_KEYS.map(x => `<li class="${S.seen[x] ? 'ok' : ''}"><b>${S.seen[x] ? ETHO[x][0] : '？？？'}</b><span>${S.seen[x] ? ETHO[x][1] : 'まだ観察していない行動'}</span></li>`).join(''); },
     tick() { const h = app.hour, hh = Math.floor(h), mm = Math.floor((h - hh) * 60), b = B(); $('clock').textContent = `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`; $('place').textContent = placeOf(camera.position.x, camera.position.z); const tr = $('timeRange'); if (tr && document.activeElement !== tr) tr.value = h;
       const st = $('stat'); if (st) { let g = 0, ro = 0, f = 0; for (const q of flock.B) { if (q.air) f++; else if (q.st === 'roost') ro++; else g++; } st.textContent = (ro ? `ねぐら ${ro}羽・` : '') + `地上 ${g}羽・飛行 ${f}羽`; }
       const pk = $('btnPeck'); if (pk) pk.classList.toggle('dis', S.manual && b.air);
@@ -298,11 +302,18 @@ export async function start(app) {
   // what this device is actually doing, shown at the bottom of the info sheet (handy when reporting how it runs on a phone)
   const diag = () => { const d = $('diag'); if (!d) return; let gpu = ''; try { const gl = renderer.getContext(), r0 = String(gl.getParameter(gl.RENDERER)), e = /^(WebKit )?WebGL$|^Mozilla$/.test(r0) ? gl.getExtension('WEBGL_debug_renderer_info') : null; gpu = String(e ? gl.getParameter(e.UNMASKED_RENDERER_WEBGL) : r0).slice(0, 80); } catch (err) { }
     const ms = S.ms || 0; d.textContent = `この端末での動作：画質「${{ high: '高', mid: '中', low: '軽' }[Q.tier] || Q.tier}」／${ms ? `1コマ平均 ${ms.toFixed(1)} ms（約 ${Math.round(1000 / ms)} fps）` : '速度は計測中'}／内部解像度 ${Math.round(Q.scale * app.drs * 100)}%${S.lite ? '・軽量化中' : ''}／起動 ${app.boot && app.boot.shown ? `${(app.boot.shown / 1000).toFixed(1)} 秒（取得 ${((app.boot.fetched || 0) / 1000).toFixed(1)}・組み立て ${(((app.boot.ready || 0) - (app.boot.fetched || 0)) / 1000).toFixed(1)}・最初の1コマ ${((app.boot.shown - (app.boot.ready || 0)) / 1000).toFixed(1)}）` : '計測なし'}／音：${snd.ctx ? ({ running: '再生中', suspended: '停止中', closed: '終了' }[snd.ctx.state] || snd.ctx.state) : '未開始'}${snd.muted ? '（消音）' : snd.ctx ? `・出力 ${snd.level().toFixed(0)} dB` : ''}／${gpu}`; };
-  on('btnInfo', () => { diag(); $('info').classList.add('on'); }); on('infoClose', () => $('info').classList.remove('on')); // the sheets also close with Esc and with a press outside the panel
-  for (const id of ['ethoPanel', 'info']) { const el = $(id); if (el) el.addEventListener('pointerdown', e => { if (e.target === el) el.classList.remove('on'); }); }
-  addEventListener('keydown', e => { if (e.key === 'Escape') for (const el of document.querySelectorAll('.modal.on')) el.classList.remove('on'); });
-  on('btnEtho', () => { ui.etho(); $('ethoPanel').classList.add('on'); }); on('ethoClose', () => $('ethoPanel').classList.remove('on'));
-  on('btnTime', () => $('timePanel').classList.toggle('on'));
+  // a sheet takes the focus when it opens and hands it back to the button that opened it; Tab stays inside while it is open
+  const sheet = { from: null, open(id, by) { const el = $(id); if (!el) return; sheet.from = by || document.activeElement; el.classList.add('on'); el.setAttribute('role', 'dialog'); el.setAttribute('aria-modal', 'true'); const x = el.querySelector('.x'); if (x) x.focus({ preventScroll: true }); },
+    close(id) { const el = $(id); if (!el || !el.classList.contains('on')) return; el.classList.remove('on'); const f = sheet.from; sheet.from = null; if (f && f.focus) f.focus({ preventScroll: true }); } };
+  addEventListener('keydown', e => { if (e.key !== 'Tab') return; const el = document.querySelector('.modal.on'); if (!el) return; const fs = [...el.querySelectorAll('button, a[href], summary')].filter(q => q.offsetParent !== null); if (!fs.length) return; const i = fs.indexOf(document.activeElement); e.preventDefault(); fs[(i + (e.shiftKey ? fs.length - 1 : 1)) % fs.length].focus(); });
+  // larger type in the sheets (the page itself cannot be pinched larger while the game holds the touches)
+  { let big = false; try { big = localStorage.getItem('hato.big') === '1'; } catch (e) { } const set = v => { big = v; document.body.classList.toggle('big', v); document.querySelectorAll('.sheet .fs').forEach(b => { b.setAttribute('aria-pressed', v ? 'true' : 'false'); b.textContent = v ? '文字をもどす' : '文字を大きく'; }); try { localStorage.setItem('hato.big', v ? '1' : '0'); } catch (e) { } }; set(big); document.querySelectorAll('.sheet .fs').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); set(!big); })); }
+  on('btnInfo', () => { diag(); sheet.open('info', $('btnInfo')); }); on('infoClose', () => sheet.close('info')); // the sheets also close with Esc and with a press outside the panel
+  for (const id of ['ethoPanel', 'info']) { const el = $(id); if (el) el.addEventListener('pointerdown', e => { if (e.target === el) sheet.close(id); }); }
+  addEventListener('keydown', e => { if (e.key === 'Escape') for (const el of document.querySelectorAll('.modal.on')) sheet.close(el.id); });
+  on('btnEtho', () => { ui.etho(); sheet.open('ethoPanel', $('btnEtho')); }); on('ethoClose', () => sheet.close('ethoPanel'));
+  on('btnTime', () => { const o = $('timePanel').classList.toggle('on'); $('btnTime').setAttribute('aria-expanded', o ? 'true' : 'false'); });
+  { const bt = $('btnTime'); if (bt) { bt.setAttribute('aria-label', '時刻・天気・画質の設定を開く'); bt.setAttribute('aria-expanded', 'false'); } }
   on('btnWet', () => { S.wet = S.wet > 0.5 ? 0 : 1; $('btnWet').classList.toggle('on', S.wet > 0.5); toast(S.wet > 0.5 ? '雨上がり' : '晴れ'); });
   // the hour set by hand is a cut, not a wait: the flock is placed where it would be (asleep on the roosts at night), and the camera follows the bird it was watching
   const setHour = h => { app.hour = h; world.setHour(h); if (flock.retime(h)) { S.snap = true; if (flock.asleep(B(), h) && !S.manual) { litFocus(); toast('夜はねぐらで眠る（軒先、川床の手すり、橋の下）'); } } };
@@ -313,7 +324,7 @@ export async function start(app) {
   const fb = $('btnFlap'); if (fb) { const dn = e => { e.preventDefault(); input.flap = true; }, upf = () => { input.flap = false; }; fb.addEventListener('pointerdown', dn); fb.addEventListener('pointerup', upf); fb.addEventListener('pointercancel', upf); fb.addEventListener('pointerleave', upf); }
   const stick = $('stick'), knob = $('knob'); if (stick) { let id = null; const set = e => { const r = stick.getBoundingClientRect(), x = (e.clientX - r.left - r.width / 2) / (r.width / 2), y = (e.clientY - r.top - r.height / 2) / (r.height / 2), m = Math.hypot(x, y), k = m > 1 ? 1 / m : 1; input.mx = x * k; input.my = -y * k; knob.style.transform = `translate(${input.mx * 32}px, ${-input.my * 32}px)`; };
     stick.addEventListener('pointerdown', e => { id = e.pointerId; stick.setPointerCapture(id); set(e); }); stick.addEventListener('pointermove', e => { if (e.pointerId === id) set(e); }); const end = () => { id = null; input.mx = input.my = 0; knob.style.transform = ''; }; stick.addEventListener('pointerup', end); stick.addEventListener('pointercancel', end); }
-  on('btnStart', () => { try { snd.start(window.__hatoAC || undefined); } catch (e) { console.warn('audio: ' + e.message); } S.started = true; document.body.classList.add('started'); setMode(qs.get('m') || 'eye'); ui.card(true); setTimeout(() => toast('地面をタップでエサ／ハトをタップで観察する相手を変更'), 4200); });
+  on('btnStart', () => { try { snd.start(window.__hatoAC || undefined); } catch (e) { console.warn('audio: ' + e.message); } S.started = true; document.body.classList.add('started'); setTimeout(() => toast('左上の時刻を押すと、夜や雨上がり、画質を選べます'), 9000); setMode(qs.get('m') || 'eye'); ui.card(true); setTimeout(() => toast('地面をタップでエサ／ハトをタップで観察する相手を変更'), 4200); });
   on('btnHide', () => { $('timePanel').classList.remove('on'); S.ui = false; S.hideT = S.t; document.body.classList.add('noui'); toast('撮影モード：画面をタップで戻る'); });
   addEventListener('pointerdown', () => { if (!S.ui && S.t - (S.hideT || 0) > 0.6) { S.ui = true; document.body.classList.remove('noui'); } }, true);
   if (S.started) document.body.classList.add('started');

@@ -34,9 +34,11 @@ window.__t = {
     const free = (x, y) => x > 330 && x < innerWidth - 110 && y > 70 && y < innerHeight - 90; let best = null, bd = 0;
     for (const p of P) { if (!free(p[1], p[2])) continue; let m = 1e9; for (const q of P) if (q !== p) m = Math.min(m, Math.hypot(q[1] - p[1], q[2] - p[2])); const me = fn(f.B[a.S.focus].pose.x, f.B[a.S.focus].pose.y, f.B[a.S.focus].pose.z); if (me) m = Math.min(m, Math.hypot(me[0] - p[1], me[1] - p[2])); if (m > bd) { bd = m; best = p; } }
     return best ? { i: best[0], x: best[1], y: best[2], clear: bd } : null; },
-  // a spot of walkable ground on the screen that is far from every pigeon
+  // a spot of walkable ground on the screen that is far from every pigeon, and where a tap really lands
   ground: (fn) => { const a = __app, f = a.flock, nav = a.world.nav, b = f.B[a.S.focus]; let best = null, bd = 0;
-    for (let k = 0; k < 240; k++) { const an = k * 0.7, r = 1.2 + (k % 13) * 0.9, x = b.x + Math.cos(an) * r, z = b.z + Math.sin(an) * r; if (!nav.walkable(x, z) || nav.cls(x, z) === 1 || nav.roof(x, z) > -900 || nav.furn(x, z) > -900) continue; const s = fn(x, nav.ground(x, z), z); if (!s || s[0] < 330 || s[0] > innerWidth - 110 || s[1] < 70 || s[1] > innerHeight - 90) continue;
+    for (let k = 0; k < 240; k++) { const an = k * 0.7, r = 1.2 + (k % 13) * 0.9, x = b.x + Math.cos(an) * r, z = b.z + Math.sin(an) * r; if (!nav.walkable(x, z) || nav.cls(x, z) === 1 || nav.furn(x, z) > -900) continue; const s = fn(x, nav.ground(x, z), z); if (!s || s[0] < 330 || s[0] > innerWidth - 110 || s[1] < 70 || s[1] > innerHeight - 90) continue;
+      // the tap itself is asked where it would land: ground under a deck is fair game, a point hidden behind a wall or a bank is not
+      if (a.tapProbe) { const pr = a.tapProbe(s[0], s[1]); if (!pr.hit || !pr.walk || pr.cls === 1 || Math.hypot(pr.hit[0] - x, pr.hit[1] - z) > 1.0) continue; } else if (nav.roof(x, z) > -900) continue;
       let m = 1e9; for (const q of f.B) { const t = fn(q.pose.x, q.pose.y, q.pose.z); if (t) m = Math.min(m, Math.hypot(t[0] - s[0], t[1] - s[1])); } if (m > bd) { bd = m; best = { x: s[0], y: s[1], clear: m, wx: x, wz: z }; } }
     return best; },
   near: (wx, wz) => __app.flock.food.filter(q => Math.hypot(q.x - wx, q.z - wz) < 1.6).length,
@@ -114,6 +116,7 @@ try:
         pg.keyboard.press('Digit1')
         frames(3)
         c0 = T('t.counts()')
+        ok('the water\'s edge has cells for drinking and bathing', T('__app.flock.shore.length') > 0, '%d cells' % T('__app.flock.shore.length'))
         ok('the panorama is on', c0['mode'] == 'eye' and pg.evaluate('!!window.__app.pano'))
         pk = T('t.pick(t.pano)')
         if pk:
@@ -124,20 +127,22 @@ try:
             ok('panorama: click on a pigeon changes the watched bird', False, 'no pigeon stands clear in the panorama')
         frames(3)
         g = T('t.ground(t.pano)')
-        for _ in range(5):   # the feed thrown by the earlier steps draws the flock around the camera; wait for a gap
+        for _ in range(12):   # the feed thrown by the earlier steps draws the flock around the camera; wait for a gap
             if g: break
             frames(6); g = T('t.ground(t.pano)')
         c0 = T('t.counts()')
         if g:
+            # sent from inside the page: through the driver the press and the release are two commands, and under load they can be more than the 0.6 s of a tap apart
+            click = lambda q: pg.evaluate('''([x, y]) => { const c = document.getElementById('c'), ev = t => c.dispatchEvent(new PointerEvent(t, { pointerId: 1, pointerType: 'mouse', isPrimary: true, clientX: x, clientY: y, bubbles: true })); ev('pointerdown'); ev('pointerup'); }''', [q['x'], q['y']])
             n0 = T('t.near(%f, %f)' % (g['wx'], g['wz']))
-            pg.mouse.click(g['x'], g['y'])
+            click(g)
             n1 = T('t.near(%f, %f)' % (g['wx'], g['wz']))
             for _ in range(4):   # a point behind a deck or an eave is refused, rightly: pick again after the bird has moved on
                 if n1 >= n0 + 15 or '建物にはまけない' not in T('t.toast()'): break
                 frames(8); g2 = T('t.ground(t.pano)')
                 if not g2: continue
-                g = g2; n0 = T('t.near(%f, %f)' % (g['wx'], g['wz'])); pg.mouse.click(g['x'], g['y']); n1 = T('t.near(%f, %f)' % (g['wx'], g['wz']))
-            ok('panorama: click on the ground scatters feed there', n1 >= n0 + 15, 'crumbs within 1.6 m: %d -> %d, toast "%s"' % (n0, n1, T('t.toast()')))
+                g = g2; n0 = T('t.near(%f, %f)' % (g['wx'], g['wz'])); click(g); n1 = T('t.near(%f, %f)' % (g['wx'], g['wz']))
+            ok('panorama: click on the ground scatters feed there', n1 >= n0 + 15, 'crumbs within 1.6 m: %d -> %d, toast "%s", probe %s' % (n0, n1, T('t.toast()'), pg.evaluate('([x, y]) => JSON.stringify(window.__app.tapProbe ? window.__app.tapProbe(x, y) : null)', [g['x'], g['y']])))
         else:
             ok('panorama: click on the ground scatters feed there', False, 'no clear ground in the panorama')
         pg.screenshot(path=out + '_pano.png')
@@ -185,13 +190,13 @@ try:
             air = False
         # every text the message line shows is kept: in the software renderer a frame takes seconds, so a message that is up for 1.3 s can come and go between two looks at the page
         pg.evaluate("window.__tl = []; new MutationObserver(() => window.__tl.push(document.getElementById('toast').textContent)).observe(document.getElementById('toast'), { childList: true, characterData: true, subtree: true })")
-        pg.keyboard.press('KeyE')
+        pg.keyboard.down('KeyE')   # held: a frame of the software renderer takes seconds, and a key that goes down and up between two frames is never seen
         try:
             pg.wait_for_function("window.__tl.some(t => t.includes('空中ではついばめない'))", timeout=45000)   # messages take turns: it follows the hint for the flying controls
         except Exception:
             pass
         tl = pg.evaluate("window.__tl"); tt = ' / '.join(tl[-4:])
-        pg.keyboard.up('Space')
+        pg.keyboard.up('KeyE'); pg.keyboard.up('Space')
         ok('pecking in the air is refused with a message', air and any('空中ではついばめない' in t for t in tl), 'airborne %s, messages "%s"' % (air, tt))
         pg.keyboard.press('KeyM')
 
