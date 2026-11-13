@@ -5,10 +5,18 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>鳩の目、京都。</title>
 <link rel="icon" href="data:,">
+<meta name="description" content="京都の先斗町・鴨川・祇園白川を、ドバトの目で歩いて飛ぶブラウザ作品。街は国土交通省 PLATEAU の 3D 都市モデル（京都市・2025 年度）の LOD3 建築物から再構成しています。">
+<script>
+// a visit with a query string, with #play, or a reload during play goes straight to the simulation; any other visit opens on the landing page
+(function () { var direct = location.search.length > 1 || location.hash === '#play'; try { direct = direct || sessionStorage.getItem('hato.play') === '1'; } catch (e) { } if (!direct) document.documentElement.classList.add('lp'); })();
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;700;800&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap" media="print" onload="this.media='all'">
 <style>
 :root { --ink: #14110f; --paper: #f3ede2; --dim: rgba(243, 237, 226, 0.66); --shu: #e2532f; --glass: rgba(20, 17, 15, 0.56); --line: rgba(243, 237, 226, 0.16);
   --st: env(safe-area-inset-top, 0px); --sb: env(safe-area-inset-bottom, 0px); --sl: env(safe-area-inset-left, 0px); --sr: env(safe-area-inset-right, 0px);
-  --sans: system-ui, -apple-system, "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", sans-serif; --serif: "Hiragino Mincho ProN", "Yu Mincho", "Noto Serif JP", serif; }
+  --sans: system-ui, -apple-system, "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", sans-serif; --serif: "Shippori Mincho", "Hiragino Mincho ProN", "Yu Mincho", "Noto Serif JP", serif; color-scheme: dark; }
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 html, body { margin: 0; height: 100%; background: #0b0a09; color: var(--paper); font-family: var(--sans); overflow: hidden; overscroll-behavior: none; touch-action: none; user-select: none; -webkit-user-select: none; }
 #c { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
@@ -101,9 +109,272 @@ body.started[data-mode=eye] #pano { display: block; } #pano .p2, body[data-pano=
 #pano b { position: absolute; top: calc(50% + 22vh); transform: translateX(-50%); font-size: 10.5px; font-weight: 500; letter-spacing: 0.12em; color: rgba(243, 237, 226, 0.82); text-shadow: 0 1px 6px rgba(0, 0, 0, 0.9); white-space: nowrap; }
 @media (max-height: 460px) { #card { width: min(260px, 40vw); } #bnote { display: none; } #acts { flex-direction: row; bottom: calc(64px + var(--sb)); } .act { min-width: 48px; height: 48px; } #stick { bottom: calc(60px + var(--sb)); width: 104px; height: 104px; } #start { padding-bottom: calc(6vh + var(--sb)); gap: 8px; } }
 @media (max-width: 420px) { #brand { display: none; } #modes button { padding: 9px 10px; font-size: 12px; } }
+
+/* ---------------------------------------------------------------- landing page (shown before the simulation is loaded)
+   plan: one dark world shared with the simulation. ink ground, paper text, vermilion for the one action, the green-to-violet of a pigeon's neck for the field-of-view marks.
+   display face: Shippori Mincho, body: Zen Kaku Gothic New. layout: a single column; the opening is a playable screen, the section labels run vertically as on a shop curtain. */
+:root { --lp-ink: #100e0c; --lp-ink2: #191613; --lp-paper: #f3ede2; --lp-dim: rgba(243, 237, 226, 0.68); --lp-faint: rgba(243, 237, 226, 0.14); --lp-shu: #e2532f; --lp-neck: linear-gradient(90deg, #2f9c7a, #7a57b4);
+  --lp-disp: "Shippori Mincho", "Hiragino Mincho ProN", "Yu Mincho", "Noto Serif JP", serif; --lp-body: "Zen Kaku Gothic New", "Hiragino Sans", "Yu Gothic UI", "Noto Sans JP", system-ui, sans-serif; }
+#lp { display: none; }
+html.lp, html.lp body { touch-action: auto; }
+html.lp #c, html.lp #loading, html.lp #hud, html.lp #start { display: none; }
+html.lp #lp { display: block; position: fixed; inset: 0; z-index: 60; overflow-x: hidden; overflow-y: auto; -webkit-overflow-scrolling: touch; touch-action: pan-y pinch-zoom; user-select: text; -webkit-user-select: text; color-scheme: dark;
+  background: var(--lp-ink); color: var(--lp-paper); font-family: var(--lp-body); font-size: 16px; line-height: 1.95; letter-spacing: 0.03em; }
+#lp * { box-sizing: border-box; }
+#lp a { color: inherit; text-underline-offset: 0.25em; text-decoration-thickness: 1px; text-decoration-color: rgba(243, 237, 226, 0.45); }
+#lp a:hover { text-decoration-color: var(--lp-shu); }
+#lp :focus-visible { outline: 2px solid var(--lp-paper); outline-offset: 3px; }
+#lp img, #lp video { display: block; max-width: 100%; height: auto; }
+#lp h1, #lp h2, #lp h3 { font-family: var(--lp-disp); font-weight: 700; margin: 0; text-wrap: balance; }
+#lp p { margin: 0; }
+.lp-w { width: min(1120px, calc(100% - 2 * max(20px, 5vw))); margin-left: auto; margin-right: auto; }
+
+/* top bar */
+.lp-top { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: calc(14px + var(--st)) max(20px, 5vw) 14px; font-size: 13px; }
+.lp-top b { font-family: var(--lp-disp); font-weight: 700; font-size: 15px; letter-spacing: 0.16em; }
+.lp-top nav { display: flex; gap: 20px; align-items: center; }
+.lp-go { font: inherit; font-weight: 700; color: #fff; background: var(--lp-shu); border: 0; border-radius: 999px; padding: 9px 22px; letter-spacing: 0.2em; text-indent: 0.2em; cursor: pointer; }
+.lp-go:active { transform: scale(0.97); }
+
+/* opening: the screen is the action */
+.lp-hero { padding-top: clamp(14px, 3vw, 36px); }
+.lp-hero .eyebrow { font-size: 12.5px; letter-spacing: 0.16em; color: var(--lp-dim); }
+.lp-hero h1 { font-weight: 800; font-size: clamp(42px, min(9.2vw, 13vh), 104px); line-height: 1.12; letter-spacing: 0.08em; margin: 0.1em 0 0.16em -0.04em; }
+.lp-hero .lead { font-family: var(--lp-disp); font-size: clamp(17px, min(2.4vw, 3.2vh), 24px); line-height: 1.75; letter-spacing: 0.08em; max-width: 26em; }
+.lp-stage { display: flex; align-items: flex-start; gap: clamp(14px, 2.4vw, 32px); margin-top: clamp(18px, 3vw, 32px); }
+.lp-stage .lp-screen { flex: 0 1 max(min(56vw, 520px), calc((100vh - 392px) * 16 / 9)); min-width: 0; width: auto; } /* a definite basis: a percentage width inside an auto-sized track collapses to nothing in Firefox */
+.lp-screen { position: relative; display: block; width: 100%; aspect-ratio: 16 / 9; padding: 0; border: 1px solid var(--lp-faint); border-radius: 6px; overflow: hidden; background: #000 center / cover no-repeat; cursor: pointer; color: inherit; font: inherit; text-align: left; }
+.lp-screen video, .lp-screen img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; pointer-events: none; }
+.lp-screen::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(16, 14, 12, 0.10) 0%, rgba(16, 14, 12, 0.0) 34%, rgba(16, 14, 12, 0.62) 100%); pointer-events: none; }
+.lp-screen .play { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 2; display: flex; align-items: center; gap: 0.9em; padding: 0.95em 2.1em 0.95em 1.7em; border-radius: 999px; background: var(--lp-shu); color: #fff; font-weight: 700; font-size: clamp(15px, 2vw, 19px); letter-spacing: 0.28em; white-space: nowrap; box-shadow: 0 10px 40px rgba(226, 83, 47, 0.5); transition: transform 0.2s ease; }
+.lp-screen .play::before { content: ""; width: 0; height: 0; border-left: 0.85em solid #fff; border-top: 0.52em solid transparent; border-bottom: 0.52em solid transparent; }
+.lp-screen:hover .play { transform: translate(-50%, -50%) scale(1.05); }
+.lp-screen:active .play { transform: translate(-50%, -50%) scale(0.97); }
+.lp-screen .note { position: absolute; left: 0; right: 0; bottom: 0; z-index: 2; padding: 0 16px 12px; font-size: clamp(11px, 1.35vw, 13px); line-height: 1.7; letter-spacing: 0.06em; color: rgba(243, 237, 226, 0.92); text-shadow: 0 1px 8px rgba(0, 0, 0, 0.9); }
+.lp-tate { writing-mode: vertical-rl; font-family: var(--lp-disp); font-weight: 700; font-size: clamp(18px, 2.3vw, 30px); letter-spacing: 0.3em; line-height: 2; color: var(--lp-paper); border-left: 1px solid var(--lp-faint); padding-left: clamp(10px, 1.6vw, 22px); white-space: nowrap; flex: none; align-self: stretch; }
+.lp-tate span { display: block; }
+.lp-tate span { color: var(--lp-dim); }
+.lp-under { display: flex; flex-wrap: wrap; gap: 6px 22px; margin-top: 14px; font-size: 12.5px; color: var(--lp-dim); }
+
+/* sections */
+.lp-sec { padding-top: clamp(64px, 10vw, 128px); }
+.lp-head { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: clamp(14px, 2.6vw, 34px); align-items: start; margin-bottom: clamp(22px, 3.4vw, 40px); }
+.lp-head .tag { writing-mode: vertical-rl; font-family: var(--lp-disp); font-size: 13px; letter-spacing: 0.5em; color: var(--lp-shu); border-left: 1px solid var(--lp-shu); padding: 0.2em 0 0.4em clamp(10px, 1.6vw, 18px); min-height: 3.4em; }
+.lp-head h2 { font-size: clamp(26px, 4.6vw, 50px); line-height: 1.42; letter-spacing: 0.06em; }
+.lp-head h2 span, .lp-hero .lead span, .lp-hero .eyebrow span { display: inline-block; }
+.lp-cols { display: grid; grid-template-columns: minmax(0, 1fr); gap: clamp(22px, 3.6vw, 48px); align-items: start; }
+.lp-text { display: grid; gap: 1.15em; max-width: 36em; color: rgba(243, 237, 226, 0.9); }
+.lp-fig { margin: 0; }
+.lp-fig img, .lp-fig video { width: 100%; border-radius: 6px; border: 1px solid var(--lp-faint); background: var(--lp-ink2); }
+.lp-fig figcaption { margin-top: 9px; font-size: 12.5px; line-height: 1.75; color: var(--lp-dim); }
+.lp-two { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: clamp(12px, 2vw, 22px); }
+
+/* the 320-degree scale under the pigeon's-eye picture */
+.lp-scale { position: relative; height: 46px; margin-top: 8px; font-size: 11px; letter-spacing: 0.06em; color: var(--lp-dim); font-variant-numeric: tabular-nums; }
+.lp-scale .ticks { position: absolute; left: 0; right: 0; top: 0; height: 9px; background: repeating-linear-gradient(90deg, rgba(243, 237, 226, 0.5) 0 1px, transparent 1px 3.125%); border-right: 1px solid rgba(243, 237, 226, 0.5); }
+.lp-scale .bino { position: absolute; left: 45.78%; width: 8.44%; top: 0; height: 9px; background: var(--lp-neck); }
+.lp-scale span { position: absolute; top: 15px; transform: translateX(-50%); white-space: nowrap; }
+.lp-scale span.l { left: 0; transform: none; } .lp-scale span.r { right: 0; left: auto; transform: none; }
+.lp-fov { width: 100%; max-width: 380px; height: auto; margin: 0 auto; }
+.lp-fov text { font-family: var(--lp-body); font-size: 13px; fill: var(--lp-paper); letter-spacing: 0.04em; }
+.lp-fov .mu { fill: var(--lp-dim); font-size: 11.5px; }
+
+/* figures of the town */
+.lp-nums { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 18px; margin: 0; border-top: 1px solid var(--lp-faint); }
+.lp-nums div { padding: 16px 14px 14px 0; border-bottom: 1px solid var(--lp-faint); }
+.lp-nums dt { font-size: 12px; line-height: 1.6; color: var(--lp-dim); order: 2; }
+.lp-nums dd { margin: 0; font-family: var(--lp-disp); font-weight: 700; font-size: clamp(30px, 4.4vw, 46px); line-height: 1.15; letter-spacing: 0.02em; font-variant-numeric: tabular-nums; }
+.lp-nums dd small { font-size: 0.42em; font-weight: 500; margin-left: 0.25em; letter-spacing: 0.1em; }
+.lp-nums div { display: flex; flex-direction: column; }
+
+.lp-can { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--lp-faint); }
+.lp-can li { display: grid; grid-template-columns: 7.2em minmax(0, 1fr); gap: 14px; padding: 13px 0; border-bottom: 1px solid var(--lp-faint); font-size: 14.5px; line-height: 1.8; }
+.lp-can b { font-family: var(--lp-disp); font-weight: 700; letter-spacing: 0.1em; }
+
+/* the five views: real screens, scrolled sideways */
+.lp-views { display: grid; grid-auto-flow: column; grid-auto-columns: min(78vw, 520px); gap: clamp(12px, 1.8vw, 20px); overflow-x: auto; overscroll-behavior-x: contain; scroll-snap-type: x proximity; padding: 4px max(20px, 5vw) 18px; margin: 0; scrollbar-width: thin; scrollbar-color: rgba(243, 237, 226, 0.3) transparent; touch-action: pan-x pan-y pinch-zoom; }
+.lp-views figure { margin: 0; scroll-snap-align: center; }
+.lp-views img { width: 100%; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 6px; border: 1px solid var(--lp-faint); }
+.lp-views figcaption { margin-top: 10px; font-size: 13px; line-height: 1.75; color: var(--lp-dim); }
+.lp-views figcaption b { display: block; font-family: var(--lp-disp); font-size: 17px; letter-spacing: 0.12em; color: var(--lp-paper); }
+
+.lp-links { display: flex; flex-wrap: wrap; gap: 10px 14px; margin-top: 6px; }
+.lp-links a { display: inline-block; padding: 9px 18px; border: 1px solid rgba(243, 237, 226, 0.4); border-radius: 999px; font-size: 13.5px; text-decoration: none; letter-spacing: 0.06em; }
+.lp-links a:hover { border-color: var(--lp-shu); }
+.lp-list { margin: 0; padding: 0 0 0 1.2em; display: grid; gap: 0.5em; font-size: 14.5px; }
+
+/* closing: the screen again, then the sources */
+.lp-end { margin-top: clamp(64px, 10vw, 128px); }
+.lp-foot { margin-top: clamp(48px, 7vw, 88px); padding-top: clamp(28px, 4.4vw, 48px); padding-bottom: calc(40px + var(--sb)); position: relative; font-size: 12.5px; line-height: 1.95; color: var(--lp-dim); }
+.lp-foot::before { content: ""; position: absolute; top: 0; left: 0; right: 0; border-top: 1px solid var(--lp-faint); }
+.lp-foot h3 { font-size: 13px; letter-spacing: 0.24em; color: var(--lp-paper); margin-bottom: 6px; }
+.lp-foot .g { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr)); gap: 22px clamp(22px, 4vw, 56px); }
+.lp-foot p + p { margin-top: 0.6em; }
+
+@media (min-width: 880px) {
+  .lp-cols.split { grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr); }
+  .lp-cols.split.rev > :first-child { order: 2; }
+}
+@media (max-width: 700px) {
+  html.lp #lp { font-size: 15px; }
+  .lp-scale .wide { display: none; }
+  .lp-top nav a { display: none; }
+  .lp-stage { flex-direction: column; align-items: stretch; }
+  .lp-stage .lp-screen { flex: none; width: 100%; }
+  .lp-tate { writing-mode: horizontal-tb; white-space: normal; border-left: 0; border-top: 1px solid var(--lp-faint); padding: 12px 0 0; letter-spacing: 0.2em; font-size: 16px; line-height: 1.9; }
+  .lp-tate span { display: inline; }
+  .lp-screen .note { padding: 0 12px 9px; }
+  .lp-head { gap: 12px; }
+}
+@media (prefers-reduced-motion: reduce) { .lp-screen .play { transition: none; } }
 </style>
 </head>
 <body data-mode="cine">
+<div id="lp">
+  <div class="lp-top"><b>鳩の目、京都。</b><nav><a href="#lp-make" data-to="lp-make">作り方</a><a href="https://github.com/kai-kou/hato-no-me-kyoto">GitHub</a><button class="lp-go" data-go>はじめる</button></nav></div>
+
+  <header class="lp-hero lp-w">
+    <p class="eyebrow"><span>PLATEAU 3D都市モデル ×</span> <span>ドバトの行動シミュレーション</span></p>
+    <h1>鳩の目、京都。</h1>
+    <p class="lead"><span>先斗町、鴨川、祇園白川。</span><br><span>実在の京都を、</span><span>ハトになって歩く。飛ぶ。</span></p>
+    <div class="lp-stage">
+      <button class="lp-screen" data-go aria-label="作品をはじめる。約 21 MB を読み込みます。音が出ます" style="background-image:url(lp/hero_poster.jpg)">
+        <video muted loop playsinline preload="none" poster="lp/hero_poster.jpg" data-src="lp/hero.mp4" data-src-s="lp/hero_s.mp4"></video>
+        <span class="play">はじめる</span>
+        <span class="note" id="lpNote">押すと、この街がブラウザの中で動きはじめます。読み込みは約 21 MB、音が出ます。</span>
+      </button>
+      <p class="lp-tate">地面から二十センチ。<span>視野は三百二十度。</span></p>
+    </div>
+    <div class="lp-under"><span>映像は作品の画面を録画したものです</span><span>インストール不要</span><span>PC とスマートフォンのブラウザに対応</span></div>
+  </header>
+
+  <section class="lp-sec lp-w" id="lp-eye">
+    <div class="lp-head"><span class="tag">視野</span><h2><span>ハトは、</span><span>ほとんど真後ろまで</span><span>見えている。</span></h2></div>
+    <div class="lp-cols">
+      <figure class="lp-fig"><img src="lp/eye.jpg" width="1280" height="720" alt="ハトの目の視点の画面。左右約320度の景色が1枚に展開され、下の中央に自分のくちばしが見える" loading="lazy" decoding="async">
+        <div class="lp-scale" aria-hidden="true"><i class="ticks"></i><i class="bino"></i><span class="l">左 160°</span><span class="wide" style="left:24%">左目だけで見える範囲</span><span style="left:50%;color:var(--lp-paper)">両眼視 27°</span><span class="wide" style="left:76%">右目だけで見える範囲</span><span class="r">右 160°</span></div>
+        <figcaption>「ハトの目」の画面。左右あわせて約 320° を 1 枚に展開しています。目盛りは 10° きざみです。下の中央に見える黒いくさびは、自分のくちばしです。</figcaption></figure>
+      <div class="lp-cols split">
+        <div class="lp-text">
+          <p>ハトの目は頭の横についています。見える範囲は左右あわせて約 320°。両目で同時に見えるのは正面の狭い帯だけで、最大でも 27° ほどです。真後ろの約 40° だけが死角になります。</p>
+          <p>この作品は、その視野を地面から 20 cm の高さで描きました。歩くと景色が止まっては進みます。頭を空間に止めてから前へ送る、あの首振りがそのまま画面に出るからです。</p>
+        </div>
+        <svg class="lp-fov" viewBox="0 0 380 300" role="img" aria-label="ハトを真上から見た視野の図。左目と右目の視野が正面の27度で重なり、真後ろの約40度が死角">
+          <path d="M190,150 L227.62,253.37 A110,110 0 0 1 152.38,253.37 Z" fill="rgba(0,0,0,0.4)" stroke="rgba(243,237,226,0.35)" stroke-dasharray="3 4"/>
+          <path d="M190,150 L152.38,253.37 A110,110 0 0 1 215.68,43.04 Z" fill="rgba(47,156,122,0.42)"/>
+          <path d="M190,150 L164.32,43.04 A110,110 0 0 1 227.62,253.37 Z" fill="rgba(122,87,180,0.42)"/>
+          <ellipse cx="190" cy="151" rx="12" ry="16" fill="#f3ede2"/><path d="M190,126 L185.5,137 L194.5,137 Z" fill="#f3ede2"/><circle cx="179.5" cy="147" r="2.6" fill="#e2532f"/><circle cx="200.5" cy="147" r="2.6" fill="#e2532f"/>
+          <text x="190" y="24" text-anchor="middle">両眼視 最大 27°</text><text x="104" y="146" text-anchor="middle">左目の視野</text><text x="276" y="146" text-anchor="middle">右目の視野</text><text x="190" y="286" text-anchor="middle">死角 約 40°</text>
+          <text class="mu" x="104" y="166" text-anchor="middle">真上から見た図</text><text class="mu" x="276" y="166" text-anchor="middle">あわせて約 320°</text>
+        </svg>
+      </div>
+    </div>
+  </section>
+
+  <section class="lp-sec lp-w" id="lp-town">
+    <div class="lp-head"><span class="tag">街</span><h2><span>看板も格子戸も、</span><span>測量された位置にある。</span></h2></div>
+    <div class="lp-cols">
+      <div class="lp-cols split">
+        <div class="lp-text">
+          <p>建物は、国土交通省の 3D 都市モデル PLATEAU（京都市・2025 年度）の LOD3 です。壁には測量のときに撮影された写真が貼られていて、作品ではそれをそのまま使っています。</p>
+          <p>舞台は実測で選びました。LOD3 の建物がある市区の壁の細かさを測ると、先斗町と祇園白川は壁 1 m あたり中央値で約 86 画素。比較した東京・虎ノ門周辺の約 17 倍でした。ハトの目線では壁まで 1〜2 m しかないので、この細かさが街の見え方を決めます。</p>
+        </div>
+        <dl class="lp-nums">
+          <div><dd>138<small>棟</small></dd><dt>LOD3 の建築物</dt></div>
+          <div><dd>834<small>棟</small></dd><dt>周囲の LOD2 建築物</dt></div>
+          <div><dd>985<small>点</small></dd><dt>街灯・柵・祠などの都市設備</dt></div>
+          <div><dd>184<small>基</small></dd><dt>夜に灯る街灯</dt></div>
+        </dl>
+      </div>
+      <div class="lp-two">
+        <figure class="lp-fig"><img src="lp/pontocho.jpg" width="1280" height="720" alt="先斗町通の路地。両側に町家の壁が続く" loading="lazy" decoding="async"><figcaption>先斗町通。壁は PLATEAU の写真、石畳はコードで描いています。</figcaption></figure>
+        <figure class="lp-fig"><img src="lp/night.jpg" width="1280" height="720" alt="夜の祇園白川。街灯が石畳を照らしている" loading="lazy" decoding="async"><figcaption>夜の祇園白川。街灯の位置は都市設備のデータどおりです。</figcaption></figure>
+      </div>
+    </div>
+  </section>
+
+  <section class="lp-sec lp-w" id="lp-flock">
+    <div class="lp-head"><span class="tag">群れ</span><h2><span>90 羽に、</span><span>台本はない。</span></h2></div>
+    <div class="lp-cols split rev">
+      <div class="lp-cols">
+        <div class="lp-text">
+          <p>ハトは 1 羽ずつが空腹と渇きを持ち、時刻と周りの動きから次の行動を決めます。朝と夕方は食べることに集中し、正午には 3〜4 割が高い場所で休み、日が沈めば橋脚や屋根の縁のねぐらへ帰ります。</p>
+          <p>人が近づけば歩いて道を空け、トビが真上を通れば一斉に飛び立ちます。飛び立ちは近いハトから順に広がるので、波が群れを渡るように見えます。</p>
+        </div>
+        <ul class="lp-can">
+          <li><b>エサをまく</b><span>近くで採餌しているハトが寄ってきて、ついばみます</span></li>
+          <li><b>手をたたく</b><span>近くの群れが一斉に飛び立ちます</span></li>
+          <li><b>ハトになる</b><span>1 羽を選んで、歩く、ついばむ、羽ばたいて飛ぶ</span></li>
+          <li><b>行動図鑑</b><span>観察できた行動が記録されます。全 16 種</span></li>
+        </ul>
+      </div>
+      <figure class="lp-fig"><img src="lp/flush.jpg" width="1280" height="720" alt="鴨川の河川敷を上空から見たところ。手をたたいた直後で、ハトが次々に飛び立っている" loading="lazy" decoding="async"><figcaption>手をたたいた直後。近いハトから順に飛び立ちます。</figcaption></figure>
+    </div>
+  </section>
+
+  <section class="lp-sec" id="lp-views">
+    <div class="lp-w"><div class="lp-head"><span class="tag">視点</span><h2>見方は 5 つ。</h2></div></div>
+    <div class="lp-views" tabindex="0" aria-label="5 つの視点の画面。横にスクロールできます">
+      <figure><img src="lp/v_eye.jpg" width="1280" height="720" alt="ハトの目の視点の画面" loading="lazy" decoding="async"><figcaption><b>ハトの目</b>左右約 320° を 1 枚に展開したパノラマ</figcaption></figure>
+      <figure><img src="lp/v_chase.jpg" width="1280" height="720" alt="ハトをすぐ後ろから追う視点の画面" loading="lazy" decoding="async"><figcaption><b>追う</b>すぐ後ろから追いかける。自分で歩かせ、飛ばせるときの視点</figcaption></figure>
+      <figure><img src="lp/v_tele.jpg" width="1280" height="720" alt="望遠の視点の画面" loading="lazy" decoding="async"><figcaption><b>望遠</b>望遠レンズと背景のぼけで、1 羽を観察する</figcaption></figure>
+      <figure><img src="lp/v_over.jpg" width="1280" height="720" alt="俯瞰の視点の画面" loading="lazy" decoding="async"><figcaption><b>俯瞰</b>上空から群れ全体を見下ろす。エサをまくのもここから</figcaption></figure>
+      <figure><img src="lp/v_cine.jpg" width="1280" height="720" alt="シネマの視点の画面" loading="lazy" decoding="async"><figcaption><b>シネマ</b>カメラが自動で切り替わる。眺めているだけでいい</figcaption></figure>
+    </div>
+  </section>
+
+  <section class="lp-sec lp-w" id="lp-film">
+    <div class="lp-head"><span class="tag">動画</span><h2><span>まず 30 秒、</span><span>見てみる。</span></h2></div>
+    <figure class="lp-fig"><video controls playsinline preload="none" poster="lp/intro_poster.jpg" src="lp/intro.mp4" width="1280" height="720"></video><figcaption>作品の画面を録画した紹介動画です。字幕つき、28 秒。音声は入っていません。</figcaption></figure>
+  </section>
+
+  <section class="lp-sec lp-w" id="lp-make">
+    <div class="lp-head"><span class="tag">作り方</span><h2><span>約 1 GB の測量データを、</span><span>54 MB に。</span></h2></div>
+    <div class="lp-cols split">
+      <div class="lp-text">
+        <p>PLATEAU の 3D Tiles 約 1 GB を、6 段の変換で約 54 MB の実行時データに作り直しました。開いたときに読み込むのは約 21 MB です。残りは背景で読み込み、細かい写真は近づいた場所から順に読みます。使っているライブラリは three.js だけです。</p>
+        <p>その場所だと分かるものは、測量データと写真をそのまま使いました。時間で変わるもの、近づくと粗くなるもの、データに無いものはコードで描いています。水、空、石畳、足元の小石、人、車、そして音も、ブラウザの中で生成しています。</p>
+        <p>実装と検証は AI（Claude Fable 5.2）が行いました。コード、変換パイプライン、検証の道具、制作の記録はすべて公開しています。</p>
+        <div class="lp-links"><a href="https://github.com/kai-kou/hato-no-me-kyoto">コードを見る（GitHub）</a><a href="https://github.com/kai-kou/hato-no-me-kyoto/blob/main/docs/article.md">制作の記録を読む</a></div>
+      </div>
+      <div class="lp-cols">
+        <figure class="lp-fig"><img src="lp/ba_ground.jpg" width="1800" height="504" alt="望遠で見た河川敷の地面の、変更前と変更後" loading="lazy" decoding="async"><figcaption>望遠での比較。右は、ハトのそばに小石を立体として置いたものです。</figcaption></figure>
+        <figure class="lp-fig"><img src="lp/ba_people.jpg" width="1288" height="470" alt="鴨川の岸に座る2人の、作り直す前と後" loading="lazy" decoding="async"><figcaption>同じ場所、同じカメラでの比較。右が作り直した人です。</figcaption></figure>
+      </div>
+    </div>
+  </section>
+
+  <section class="lp-sec lp-w" id="lp-env">
+    <div class="lp-head"><span class="tag">環境</span><h2>動かすには。</h2></div>
+    <ul class="lp-list lp-text">
+      <li>WebGL 2 に対応したブラウザで動きます。Chromium、WebKit、Firefox の各エンジンで動作を確認しました。</li>
+      <li>画質は端末に合わせて 3 段階から自動で選ばれます。描画が間に合わないときは、内部の解像度を下げて続けます。</li>
+      <li>確認は AI が手元のソフトウェア描画で行いました。実機での速度と、耳で聴いた音の印象は確かめられていません。作品の「i」ボタンに、その端末での動作状況が出ます。</li>
+      <li>LOD3 の建物があるのは、先斗町通と祇園白川沿いです。季節は、鴨川に納涼床が出ている 10 月中旬に固定しています。</li>
+    </ul>
+  </section>
+
+  <div class="lp-end lp-w">
+    <button class="lp-screen" data-go aria-label="作品をはじめる。約 21 MB を読み込みます。音が出ます" style="background-image:url(lp/night.jpg)">
+      <span class="play">はじめる</span>
+      <span class="note">読み込みは約 21 MB、音が出ます。</span>
+    </button>
+  </div>
+
+  <footer class="lp-foot lp-w">
+    <div class="g">
+      <div><h3>出典</h3>
+        <p>本作品は、国土交通省 Project PLATEAU の 3D 都市モデル（京都市、2025 年度）と、国土地理院の地理院タイル（標高タイル、シームレス空中写真）を加工して作成したものです。国土交通省、国土地理院、京都市が内容を保証するものではありません。</p>
+        <p>遠景の地表は地理院タイルのズームレベル 12 で、データソースは Landsat8 画像（GSI, TSIC, GEO Grid/AIST）、Landsat8 画像（courtesy of the U.S. Geological Survey）、海底地形（GEBCO）です。</p>
+        <p><a href="https://www.mlit.go.jp/plateau/">Project PLATEAU</a>　<a href="https://maps.gsi.go.jp/development/ichiran.html">地理院タイル一覧</a>　<a href="https://github.com/kai-kou/hato-no-me-kyoto/blob/main/NOTICE.md">データごとの出典と利用条件</a></p></div>
+      <div><h3>ライセンス</h3>
+        <p>コードは MIT License、文章・画像・動画は CC BY 4.0 です。データを加工した成果物は、元データの利用条件に従います。描画には three.js r170（MIT License）を使っています。</p>
+        <p>© 2026 kai-kou　<a href="https://github.com/kai-kou/hato-no-me-kyoto">github.com/kai-kou/hato-no-me-kyoto</a></p></div>
+      <div lang="en"><h3>English</h3>
+        <p>Hato no Me, Kyoto (“Pigeon’s Eye, Kyoto”) is a browser piece in which you walk and fly through Pontocho, the Kamo River and Gion Shirakawa as a feral pigeon. The town is rebuilt from the LOD3 buildings of Project PLATEAU, the open 3D city model published by Japan’s Ministry of Land, Infrastructure, Transport and Tourism (Kyoto, FY2025).</p></div>
+    </div>
+  </footer>
+</div>
 <canvas id="c"></canvas>
 
 <div id="pano">
@@ -118,7 +389,7 @@ body.started[data-mode=eye] #pano { display: block; } #pano .p2, body[data-pano=
   <div id="tr"><button id="btnEtho" class="ic glass" style="width:auto;padding:0 12px;border-radius:19px">図鑑 <span id="ethoN" style="margin-left:5px;color:var(--shu)">0/16</span></button><button id="btnSound" class="ic glass" aria-label="音">音</button><button id="btnInfo" class="ic glass" aria-label="情報">i</button></div>
   <div id="card" class="glass"><div id="bname"></div><div id="bact"></div><div id="bnote"></div><div id="stat"></div></div>
   <div id="timePanel" class="panel glass">
-    <div class="row"><span>時刻（京都・11月12日）</span></div>
+    <div class="row"><span>時刻（京都・10月中旬）</span></div>
     <input id="timeRange" type="range" min="0" max="23.98" step="0.02" value="9.6">
     <div class="row"><button class="chip" data-h="6.6">夜明け</button><button class="chip" data-h="9.6">朝</button><button class="chip" data-h="12.5">昼</button><button class="chip" data-h="16.3">夕</button><button class="chip" data-h="17.3">薄暮</button><button class="chip" data-h="20">夜</button></div>
     <div class="row"><span>時間の流れ</span><button class="chip on" data-ts="0">止める</button><button class="chip" data-ts="60">×60</button><button class="chip" data-ts="600">×600</button><button class="chip" data-ts="3000">×3000</button></div>
@@ -157,6 +428,7 @@ body.started[data-mode=eye] #pano { display: block; } #pano .p2, body[data-pano=
   <p>建物・道路・都市設備：国土交通省 Project PLATEAU 3D都市モデル（京都市 2025年度、建築物 LOD3／LOD2・道路 LOD3・都市設備 LOD3・植生 LOD3）。壁面は同データの実写テクスチャです。<br>地形・水面範囲：国土地理院 地理院タイル（標高タイル DEM1A・DEM5A・DEM10B）。地表の写真：地理院タイル（シームレス空中写真）を加工して使用。遠景の地表は同タイルのズームレベル12で、データソースは Landsat8画像（GSI,TSIC,GEO Grid/AIST）、Landsat8画像（courtesy of the U.S. Geological Survey）、海底地形（GEBCO）です。砂利・石・草の細部はコードによる生成です。<br>ハト、樹木、鴨川の橋、水面、空、音、そして人と車はすべてコードによる手続き生成です（樹木の位置は PLATEAU の植生データと空中写真、橋の位置は空中写真から）。人は一人ずつ体格・服装・髪型の違う立体をコードで作り、13本の骨で動かしています（顔や指は簡略です）。鴨川名物の「等間隔に座る人たち」、歩く人、走る人、立ち止まる人に加えて、祇園と先斗町には着物姿の人もいます。川端通と四条通の路面は空中写真では車や木がにじむため、アスファルトと車線をコードで描いています。歩行者が近づくとハトは道を空け、走ってくると飛び立ちます。季節は、鴨川の納涼床（例年5月1日〜10月15日）が出ている最後の週にあたる10月中旬に設定しています。桜の葉が色づき始める頃で、太陽の高さと日の出・日の入りもこの時期に合わせています。上空を舞うトビ、行動の頻度、羽色の比率は演出を含みます。ハトの行動は実際のドバトの生態（採餌の時間帯、ねぐら、求愛、水の飲み方など）をもとにモデル化していますが、個体数や行動頻度は観察しやすいよう調整しています。</p>
   <p style="color:var(--dim);font-size:11px">本作品は上記データを加工して作成したもので、国土交通省・国土地理院・京都市が内容を保証するものではありません。</p>
   <p style="color:var(--dim);font-size:11px">コードとデータ変換の手順：<a href="https://github.com/kai-kou/hato-no-me-kyoto" target="_blank" rel="noopener" style="color:inherit">github.com/kai-kou/hato-no-me-kyoto</a></p>
+  <p style="color:var(--dim);font-size:11px"><a href="./" id="toLp" style="color:inherit">紹介ページへ戻る</a></p>
   <p id="diag" style="color:var(--dim);font-size:11px"></p>
 </div></div>
 
@@ -165,11 +437,36 @@ body.started[data-mode=eye] #pano { display: block; } #pano .p2, body[data-pano=
 <script>
 // show a readable message if the scripts or data cannot be loaded
 (function () { var err = document.getElementById('err'), show = function (m, weak) { if (document.body.classList.contains('ready') || (weak && err.textContent)) return; err.textContent = m; err.style.display = 'block'; };
-  window.addEventListener('error', function (e) { show('エラー: ' + (e.message || (e.target && (e.target.src || e.target.href)) || '読み込みに失敗しました')); }, true);
-  window.addEventListener('unhandledrejection', function (e) { show('エラー: ' + (e.reason && e.reason.message || e.reason)); });
-  setTimeout(function () { if (!window.__app) show('スクリプトを読み込めませんでした。ページを再読み込みしてください。', true); }, 12000);
+  window.addEventListener('error', function (e) { var t = e.target; if (!window.__hatoBooted || (t && t !== window && t.tagName && t.tagName !== 'SCRIPT')) return; // a font, picture or film that fails to load is not a reason to stop
+    show('エラー: ' + (e.message || (t && t.src) || '読み込みに失敗しました')); }, true);
+  window.addEventListener('unhandledrejection', function (e) { if (!window.__hatoBooted) return; show('エラー: ' + (e.reason && e.reason.message || e.reason)); });
+  window.__hatoWatch = function () { setTimeout(function () { if (!window.__app) show('スクリプトを読み込めませんでした。ページを再読み込みしてください。', true); }, 12000); };
   if (!window.WebGL2RenderingContext) show('このブラウザは WebGL2 に対応していません。'); })();
 </script>
-<script type="module" src="./js/main.js"></script>
+<script>
+// landing page -> simulation. The module is added only when the simulation is wanted, so reading the landing page costs no 3D data.
+(function () { var d = document, H = d.documentElement, lp = d.getElementById('lp'), vp = d.querySelector('meta[name=viewport]'), GAME_VP = vp.getAttribute('content');
+  function boot(go) { if (window.__hatoBooted) return; window.__hatoBooted = true;
+    if (go) { window.__hatoGo = true; // pressed on the landing page: unlock sound inside this press, and skip the simulation's own title
+      try { var AC = window.AudioContext || window.webkitAudioContext; if (AC) { var c = new AC(), b = c.createBuffer(1, 1, 22050), n = c.createBufferSource(); if (c.resume) c.resume(); n.buffer = b; n.connect(c.destination); n.start(0); window.__hatoAC = c; } } catch (e) { }
+      try { sessionStorage.setItem('hato.play', '1'); } catch (e) { }
+      try { history.replaceState(null, '', '#play'); } catch (e) { } }
+    if (lp) { var vs = lp.querySelectorAll('video'); for (var k = 0; k < vs.length; k++) { try { vs[k].pause(); vs[k].removeAttribute('src'); vs[k].load(); } catch (e) { } } }
+    H.classList.remove('lp'); vp.setAttribute('content', GAME_VP); if (lp && lp.parentNode) lp.parentNode.removeChild(lp); // the landing page is done: free its pictures and video decoders before the 3D data arrives
+    var s = d.createElement('script'); s.type = 'module'; s.src = './js/main.js'; d.body.appendChild(s); window.__hatoWatch(); }
+  window.__hatoBoot = boot;
+  var back = d.getElementById('toLp'); if (back) back.addEventListener('click', function (e) { e.preventDefault(); try { sessionStorage.removeItem('hato.play'); } catch (err) { } try { history.replaceState(null, '', location.pathname); location.reload(); } catch (err) { location.replace(location.pathname); } });
+  if (!H.classList.contains('lp') || !lp) { boot(false); return; }
+  vp.setAttribute('content', 'width=device-width, initial-scale=1, viewport-fit=cover');
+  if (!window.WebGL2RenderingContext) { var nt = d.getElementById('lpNote'); if (nt) nt.textContent = 'このブラウザは WebGL 2 に対応していないため、作品は動きません。下の動画でご覧ください。'; }
+  lp.addEventListener('click', function (e) { var t = e.target.closest ? e.target.closest('[data-go],[data-to]') : null; if (!t) return; e.preventDefault();
+    if (t.hasAttribute('data-go')) boot(true); else { var el = d.getElementById(t.getAttribute('data-to')); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' }); } });
+  addEventListener('hashchange', function () { if (location.hash === '#play') boot(false); });
+  // the opening screen plays footage of the simulation: silent, only while it is in view, and not at all when the visitor asked for less motion or less data
+  var v = lp.querySelector('.lp-screen video'), calm = (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) || (navigator.connection && navigator.connection.saveData);
+  if (v && !calm) { var play = function () { var p = v.play(); if (p && p.catch) p.catch(function () { }); }; v.muted = true; v.src = Math.min(innerWidth, innerHeight) < 600 ? v.getAttribute('data-src-s') : v.getAttribute('data-src'); play();
+    if ('IntersectionObserver' in window) new IntersectionObserver(function (es) { for (var k = 0; k < es.length; k++) { if (es[k].isIntersecting) play(); else v.pause(); } }, { root: lp, threshold: 0.15 }).observe(v); }
+})();
+</script>
 </body>
 </html>

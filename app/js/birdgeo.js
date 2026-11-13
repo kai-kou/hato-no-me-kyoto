@@ -27,13 +27,14 @@ export function buildPigeonGeometry() {
   const vtx = (p, skin, fea, pat) => { P.push(p.x, p.y, p.z); S.push(skin[0], skin[1], skin[2]); F.push(fea[0], fea[1], fea[2]); T.push(pat[0], pat[1], pat[2], pat[3]); return P.length / 3 - 1; };
   const quad = (a, b, c, d) => { I.push(a, b, c, a, c, d); };
   const NOF = [0, 0, 0];
+  const SEAM = []; // pairs of vertices at the same place on either side of a pattern seam; their normals are joined after the normals are computed
   // generic loft: rings[i] = {c:Vector3, ax:Vector3 (ring normal), up:Vector3, rx, ryT, ryB, skin, u}; closes both ends with caps
   function loft(rings, segs, region, puff, capA = true, capB = true) {
-    const base = P.length / 3; const n = rings.length;
+    const base = P.length / 3; const n = rings.length, W = segs + 1;
     for (let i = 0; i < n; i++) { const r = rings[i], ax = r.ax.clone().normalize(), side = r.up.clone().cross(ax).normalize(), up = ax.clone().cross(side).normalize();
-      for (let k = 0; k < segs; k++) { const th = k / segs * Math.PI * 2, cs = Math.cos(th), sn = Math.sin(th); const p = r.c.clone().addScaledVector(side, sn * r.rx).addScaledVector(up, cs * (cs > 0 ? r.ryT : r.ryB)); vtx(p, r.skin, NOF, [r.u, k / segs, region, puff]); } }
-    for (let i = 0; i < n - 1; i++) for (let k = 0; k < segs; k++) { const a = base + i * segs + k, b = base + i * segs + (k + 1) % segs, c = base + (i + 1) * segs + (k + 1) % segs, d = base + (i + 1) * segs + k; quad(a, d, c, b); }
-    const cap = (i, flip) => { const r = rings[i], cI = vtx(r.c.clone().addScaledVector(r.ax.clone().normalize(), (flip ? -1 : 1) * Math.min(r.rx, r.ryT) * 0.55), r.skin, NOF, [r.u, 0.5, region, puff]); for (let k = 0; k < segs; k++) { const a = base + i * segs + k, b = base + i * segs + (k + 1) % segs; if (flip) I.push(cI, a, b); else I.push(cI, b, a); } };
+      for (let k = 0; k <= segs; k++) { const th = (k % segs) / segs * Math.PI * 2, cs = Math.cos(th), sn = Math.sin(th); const p = r.c.clone().addScaledVector(side, sn * r.rx).addScaledVector(up, cs * (cs > 0 ? r.ryT : r.ryB)); const id = vtx(p, r.skin, NOF, [r.u, k / segs, region, puff]); if (k === segs) SEAM.push(id - segs, id); } }
+    for (let i = 0; i < n - 1; i++) for (let k = 0; k < segs; k++) { const a = base + i * W + k, b = a + 1, c = base + (i + 1) * W + k + 1, d = base + (i + 1) * W + k; quad(a, d, c, b); }
+    const cap = (i, flip) => { const r = rings[i], cI = vtx(r.c.clone().addScaledVector(r.ax.clone().normalize(), (flip ? -1 : 1) * Math.min(r.rx, r.ryT) * 0.55), r.skin, NOF, [r.u, 0.5, region, puff]); for (let k = 0; k < segs; k++) { const a = base + i * W + k, b = a + 1; if (flip) I.push(cI, a, b); else I.push(cI, b, a); } };
     if (capA) cap(0, true); if (capB) cap(n - 1, false);
   }
   const Z = V(0, 0, 1), Y = V(0, 1, 0), X = V(1, 0, 0), sk = (b0, b1 = b0, w = 0) => [b0, b1, w];
@@ -48,9 +49,9 @@ export function buildPigeonGeometry() {
     loft(rings, 18, 1, 1, false, false); }
   // ---- head
   { const H = RIG.head, la = 12, lo = 20, base = P.length / 3;
-    for (let i = 0; i <= la; i++) { const ph = i / la * Math.PI; for (let k = 0; k < lo; k++) { const th = k / lo * Math.PI * 2; let x = Math.sin(ph) * Math.sin(th), y = Math.sin(ph) * Math.cos(th), z = Math.cos(ph);
-      const fz = z > 0 ? 1.0 + 0.10 * z : 1.0; const yy = y > 0 ? y * (1.0 - 0.10 * Math.max(0, z)) : y; vtx(V(H.x + x * 0.0168, H.y + yy * 0.0172 + 0.002 * Math.max(0, -z), H.z + z * 0.0205 * fz), sk(1), NOF, [1 - i / la, k / lo, 2, 0.35]); } }
-    for (let i = 0; i < la; i++) for (let k = 0; k < lo; k++) { const a = base + i * lo + k, b = base + i * lo + (k + 1) % lo, c = base + (i + 1) * lo + (k + 1) % lo, d = base + (i + 1) * lo + k; quad(a, b, c, d); }
+    for (let i = 0; i <= la; i++) { const ph = i / la * Math.PI; for (let k = 0; k <= lo; k++) { const th = (k % lo) / lo * Math.PI * 2; let x = Math.sin(ph) * Math.sin(th), y = Math.sin(ph) * Math.cos(th), z = Math.cos(ph);
+      const fz = z > 0 ? 1.0 + 0.10 * z : 1.0; const yy = y > 0 ? y * (1.0 - 0.10 * Math.max(0, z)) : y; const id = vtx(V(H.x + x * 0.0168, H.y + yy * 0.0172 + 0.002 * Math.max(0, -z), H.z + z * 0.0205 * fz), sk(1), NOF, [1 - i / la, k / lo, 2, 0.35]); if (k === lo) SEAM.push(id - lo, id); } }
+    for (let i = 0; i < la; i++) for (let k = 0; k < lo; k++) { const a = base + i * (lo + 1) + k, b = a + 1, c = base + (i + 1) * (lo + 1) + k + 1, d = base + (i + 1) * (lo + 1) + k; quad(a, b, c, d); }
     // beak: upper + lower mandible
     const beak = (y0, len, r0, droop, reg) => { const rings = []; for (let i = 0; i < 9; i++) { const t = i / 8; rings.push({ c: V(H.x, H.y + y0 - droop * t * t, H.z + 0.0165 + len * t), ax: Z, up: Y, rx: r0 * (1 - t) ** 0.8 + 0.0006, ryT: r0 * 0.8 * (1 - t) ** 0.9 + 0.0005, ryB: r0 * 0.45 * (1 - t) + 0.0004, skin: sk(1), u: t }); } loft(rings, 16, reg, 0, false, true); };
     beak(-0.0015, 0.0215, 0.0050, 0.0035, 3); beak(-0.0052, 0.0165, 0.0036, 0.0005, 3);
@@ -124,6 +125,7 @@ export function buildPigeonGeometry() {
   const g = new THREE.BufferGeometry();
   g.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); g.setAttribute('aSkin', new THREE.Float32BufferAttribute(S, 3)); g.setAttribute('aFeather', new THREE.Float32BufferAttribute(F, 3)); g.setAttribute('aPat', new THREE.Float32BufferAttribute(T, 4));
   g.setIndex(I); g.computeVertexNormals();
+  { const N = g.attributes.normal; for (let k = 0; k < SEAM.length; k += 2) { const a = SEAM[k], b = SEAM[k + 1]; let x = N.getX(a) + N.getX(b), y = N.getY(a) + N.getY(b), z = N.getZ(a) + N.getZ(b); const l = Math.hypot(x, y, z) || 1; x /= l; y /= l; z /= l; N.setXYZ(a, x, y, z); N.setXYZ(b, x, y, z); } }
   g.boundingSphere = new THREE.Sphere(new THREE.Vector3(), 0.6); g.boundingBox = new THREE.Box3(new THREE.Vector3(-0.5, -0.3, -0.5), new THREE.Vector3(0.5, 0.3, 0.5));
   return g;
 }

@@ -41,6 +41,8 @@
 | three.js r170 | MIT License。Copyright 2010-2024 Three.js Authors | `app/js/three.module.min.js` |
 | three.js r187 | MIT License。Copyright 2010-2026 Three.js Authors | `prototype/osaka-nipponbashi/three.core.js`、`three.module.js` |
 
+紹介ページは、Google Fonts から Shippori Mincho と Zen Kaku Gothic New（どちらも SIL Open Font License 1.1）を読み込みます。フォントのファイルは同梱していません。読み込めない環境では、端末の明朝体とゴシック体で表示します。
+
 `pipeline/` が使うライブラリ（glTF Transform、draco3dgltf、earcut、meshoptimizer、sharp、three）は同梱していません。`pipeline/package.json` に一覧があります。
 
 ## 作成者

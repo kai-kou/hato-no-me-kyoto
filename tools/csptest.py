@@ -33,6 +33,16 @@ with sync_playwright() as p:
         time.sleep(0.2)
     fr=fr[0]; t0=time.time()
     ok=False
+    # the page opens on the landing page: press its opening screen, as a visitor would, and the simulation starts from there
+    lp=False
+    for i in range(40):
+        try:
+            if fr.evaluate("document.readyState!=='loading'"): lp=fr.evaluate("document.documentElement.classList.contains('lp')"); break
+        except Exception as e: pass
+        time.sleep(0.25)
+    if lp:
+        try: print('landing page', fr.evaluate("(()=>{const l=document.getElementById('lp'),v=l.querySelector('.lp-screen video');return JSON.stringify({video:!!(v&&v.currentSrc),paused:v?v.paused:null,broken:[...l.querySelectorAll('img')].filter(i=>i.complete&&!i.naturalWidth).length,booted:!!window.__hatoBooted})})()")); fr.click('.lp-hero .lp-screen',timeout=20000)
+        except Exception as e: print('landing page click failed',str(e)[:200])
     for i in range(240):
         try:
             if fr.evaluate('!!(window.__app && window.__app.ready && window.__app.frames>2)'): ok=True; break
@@ -40,7 +50,7 @@ with sync_playwright() as p:
         time.sleep(1)
     print(eng,'in sandboxed cross-origin iframe with CSP: ready',ok,'%.1fs'%(time.time()-t0),'frame url',fr.url)
     try:
-        print(fr.evaluate("(async()=>{const a=window.__app,w=ms=>new Promise(r=>setTimeout(r,ms));document.getElementById('btnStart').click();await w(1500);let ls='ok';try{localStorage.setItem('hato.t','1')}catch(e){ls='blocked'};return JSON.stringify({started:a.S.started,mode:a.S.mode,audio:a.snd.ctx?a.snd.ctx.state:'none',tier:a.Q.tier,ls,err:document.getElementById('err').textContent,texLv:a.world.tex.stats()})})()"))
+        print(fr.evaluate("(async()=>{const a=window.__app,w=ms=>new Promise(r=>setTimeout(r,ms));if(!a.S.started)document.getElementById('btnStart').click();await w(1500);let ls='ok';try{localStorage.setItem('hato.t','1')}catch(e){ls='blocked'};return JSON.stringify({started:a.S.started,fromLanding:!!window.__hatoGo,mode:a.S.mode,audio:a.snd.ctx?a.snd.ctx.state:'none',tier:a.Q.tier,ls,err:document.getElementById('err').textContent,texLv:a.world.tex.stats()})})()"))
     except Exception as e: print('eval fail',str(e)[:300])
     pg.wait_for_timeout(3000); pg.screenshot(path=TMP+'/csp_%s.png'%eng,timeout=120000)
     print('bad responses',bad[:5]); [print('   ',l) for l in logs[:12]]; b.close()

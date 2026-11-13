@@ -271,11 +271,12 @@ export async function start(app) {
   const fb = $('btnFlap'); if (fb) { const dn = e => { e.preventDefault(); input.flap = true; }, upf = () => { input.flap = false; }; fb.addEventListener('pointerdown', dn); fb.addEventListener('pointerup', upf); fb.addEventListener('pointercancel', upf); fb.addEventListener('pointerleave', upf); }
   const stick = $('stick'), knob = $('knob'); if (stick) { let id = null; const set = e => { const r = stick.getBoundingClientRect(), x = (e.clientX - r.left - r.width / 2) / (r.width / 2), y = (e.clientY - r.top - r.height / 2) / (r.height / 2), m = Math.hypot(x, y), k = m > 1 ? 1 / m : 1; input.mx = x * k; input.my = -y * k; knob.style.transform = `translate(${input.mx * 32}px, ${-input.my * 32}px)`; };
     stick.addEventListener('pointerdown', e => { id = e.pointerId; stick.setPointerCapture(id); set(e); }); stick.addEventListener('pointermove', e => { if (e.pointerId === id) set(e); }); const end = () => { id = null; input.mx = input.my = 0; knob.style.transform = ''; }; stick.addEventListener('pointerup', end); stick.addEventListener('pointercancel', end); }
-  on('btnStart', () => { try { snd.start(); } catch (e) { console.warn('audio: ' + e.message); } S.started = true; document.body.classList.add('started'); setMode('tele'); ui.card(true); setTimeout(() => toast('地面をタップでエサ／ハトをタップで観察する相手を変更'), 4200); });
+  on('btnStart', () => { try { snd.start(window.__hatoAC || undefined); } catch (e) { console.warn('audio: ' + e.message); } S.started = true; document.body.classList.add('started'); setMode('tele'); ui.card(true); setTimeout(() => toast('地面をタップでエサ／ハトをタップで観察する相手を変更'), 4200); });
   on('btnHide', () => { $('timePanel').classList.remove('on'); S.ui = false; S.hideT = S.t; document.body.classList.add('noui'); toast('撮影モード：画面をタップで戻る'); });
   addEventListener('pointerdown', () => { if (!S.ui && S.t - (S.hideT || 0) > 0.6) { S.ui = true; document.body.classList.remove('noui'); } }, true);
   if (S.started) document.body.classList.add('started');
   ui.modes(); ui.manual(); S.act = actOf(B()); ui.card(); ui.etho(); ui.tick();
+  if (window.__hatoGo && !S.started) $('btnStart').click(); // opened from the landing page: the press there already asked to start, and unlocked the sound
   if (!S.started) { S.mode = 'cine'; ui.modes(); }
   // warm-up: let the flock settle and take one camera step before the first frame
   for (let i = 0; i < 40; i++) flock.update(0.05, app.hour); if (qs.get('clap')) { flock.scare(B().x, B().z, 22, true); for (let i = 0; i < +qs.get('clap') * 20; i++) flock.update(0.05, app.hour); }

@@ -26,9 +26,9 @@ class Acc {
 }
 
 // ------------------------------------------------------------------ leaves
-const LEAF_V = `attribute vec2 aLuv; attribute vec3 aPar; varying vec2 vLuv; varying vec3 vPar; varying vec3 vWPos; uniform float uTime; uniform vec2 uWind;`;
+const LEAF_V = `attribute vec2 aLuv; attribute vec3 aPar; varying vec2 vLuv; flat varying vec3 vPar; varying vec3 vWPos; uniform float uTime; uniform vec2 uWind;`;
 const LEAF_VB = `{ float sw = aPar.z; float ph = uTime * 1.5 + position.x * 0.7 + position.z * 0.55 + aPar.x * 6.0; transformed.xz += uWind * (sin(ph) * 0.6 + sin(ph * 2.7 + 1.3) * 0.25 + 0.3) * sw * 0.085; transformed.y += sin(ph * 1.9) * sw * 0.014; vLuv = aLuv; vPar = aPar; }`;
-const LEAF_F = `varying vec2 vLuv; varying vec3 vPar; varying vec3 vWPos; uniform vec3 uSunDir, uSunCol; uniform float uSunI;
+const LEAF_F = `varying vec2 vLuv; flat varying vec3 vPar; varying vec3 vWPos; uniform vec3 uSunDir, uSunCol; uniform float uSunI;
 ${GLSL_NOISE}
 float leafMask(vec2 uv, float seed, float kind, out float tone){
   float nx = kind > 2.5 ? 4.0 : (kind > 0.5 && kind < 1.5 ? 5.0 : 3.0), ny = kind > 2.5 ? 4.0 : (kind > 0.5 && kind < 1.5 ? 2.0 : 3.0);

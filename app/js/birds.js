@@ -7,7 +7,7 @@ import { U } from './world.js';
 const TW = NB * 2 + 2; // texels per bird: 15 bones x (quat, trans) + 2 parameter texels
 const V_PARS = `
 uniform sampler2D uBones; uniform float uHideOn; attribute vec3 aSkin; attribute vec3 aFeather; attribute vec4 aPat; attribute vec4 aMorphA; attribute vec4 aMorphB;
-varying vec4 vPat; varying vec4 vMA; varying vec4 vMB; varying vec3 vWPos;
+varying vec4 vPat; flat varying vec4 vMA; flat varying vec4 vMB; varying vec3 vWPos;
 vec3 gBirdP;
 vec3 qrot(vec4 q, vec3 v){ return v + 2.0 * cross(q.xyz, cross(q.xyz, v) + q.w * v); }
 float ssv(float a, float b, float x){ float t = clamp((x - a) / (b - a), 0.0, 1.0); return t * t * (3.0 - 2.0 * t); }
@@ -26,41 +26,57 @@ void birdSkin(inout vec3 p, inout vec3 n){
   if (uHideOn * P1.y > 0.5 && ((reg > 0.5 && reg < 2.5) || (reg > 3.5 && reg < 5.5))) p = vec3(0.0);
 }`;
 const F_PARS = `
-varying vec4 vPat; varying vec4 vMA; varying vec4 vMB; varying vec3 vWPos; uniform float uNight; uniform sampler2D uLampTex; uniform vec4 uLampRect; uniform vec3 uLampCol; uniform vec3 uHor;
+varying vec4 vPat; flat varying vec4 vMA; flat varying vec4 vMB; varying vec3 vWPos; uniform float uNight; uniform sampler2D uLampTex; uniform vec4 uLampRect; uniform vec3 uLampCol; uniform vec3 uHor;
 ${GLSL_NOISE}
 ${GLSL_BSH}
 float bRough = 0.6; float bIrid = 0.0; float bBump = 0.0;
-vec3 bPerturb(vec3 vpos, vec3 n, float h, float sc){ vec3 dpx = dFdx(vpos), dpy = dFdy(vpos); float dhx = dFdx(h), dhy = dFdy(h); vec3 r1 = cross(dpy, n), r2 = cross(n, dpx); float det = dot(dpx, r1); vec3 g = sign(det) * (dhx * r1 + dhy * r2); return normalize(abs(det) * n - sc * g); }
+vec3 bPerturb(vec3 vpos, vec3 n, float h, float sc){ vec3 dpx = dFdx(vpos), dpy = dFdy(vpos); float dhx = dFdx(h), dhy = dFdy(h); vec3 r1 = cross(dpy, n), r2 = cross(n, dpx); float det = dot(dpx, r1); vec3 g = sign(det) * (dhx * r1 + dhy * r2); float t = sc * length(g) / max(abs(det), 1e-12); return normalize(abs(det) * n - sc * g * min(1.0, 0.9 / max(t, 1e-6))); }
+// Overlapping feathers on a lattice: tips toward +g.x, each row lying on the row behind it (larger g.x). cid: which feather is on top at this point (cid.y wraps at wr).
+// fl: the point in that feather's own frame, x along (negative on the part that shows between the tips of the row in front, 0 where those tips end, 1 at its own tip), y across (-0.5..0.5).
+// returns x: 0 -> 1 toward the feather's own tip edge, y: 1 right under the edge of a feather lying on top, falling to 0 away from it. max(x, y) is continuous everywhere.
+vec2 fthr(vec2 g, float wr, out vec2 cid, out vec2 fl){
+  float ix = floor(g.x), fx = g.x - ix, gy = g.y - 0.5 * mod(ix, 2.0), iy = floor(gy), fy = gy - iy - 0.5, e = sqrt(fx * fx + 4.0 * fy * fy);
+  if (e < 1.0) { cid = vec2(ix, mod(iy, wr)); fl = vec2(fx, fy); float a = 0.5 - abs(fy), ec = sqrt((1.0 + fx) * (1.0 + fx) + 4.0 * a * a); return vec2(ss(0.78, 1.0, e), 1.0 - ss(1.0, 1.35, ec)); }
+  gy = g.y - 0.5 * mod(ix + 1.0, 2.0); iy = floor(gy); cid = vec2(ix + 1.0, mod(iy, wr)); fl = vec2(fx - 1.0, gy - iy - 0.5); return vec2(0.0, 1.0 - ss(1.0, 1.35, e));
+}
+// chequer: black on both webs of a covert, leaving a pale wedge along the shaft that opens toward the tip. am: how far along the feather the black reaches on this bird
+float chq(vec2 fl, vec2 cid, float seed, float am){
+  float h1 = h21(cid + seed * 23.0 + 3.7), h2 = h21(cid + seed * 31.0 + 8.3), ext = am + (h1 - 0.5) * 0.42, w = 0.56 * ss(ext - 0.62, ext + 0.02, fl.x);
+  return ss(w - 0.045, w + 0.045, abs(fl.y - (h2 - 0.5) * 0.10)) * (0.74 + 0.26 * h2) * step(0.07, h1);
+}
 vec3 birdAlbedo(vec3 N, vec3 Vv){
-  float reg = vPat.z; vec2 uvp = vPat.xy; vec3 body = vMA.rgb, wingc = vMB.rgb; float typ = vMA.a, white = vMB.a; vec3 col = body; float seed = fract(vMA.r * 37.0 + vMB.g * 91.0);
+  float reg = vPat.z; vec2 uvp = vPat.xy; vec3 body = vMA.rgb, wingc = vMB.rgb; float typ = vMA.a, white = vMB.a; vec3 col = body; float seed = fract(vMA.r * 37.0 + vMB.g * 91.0), an = uvp.y * 6.2832, av = abs(uvp.y - 0.5) * 2.0, cam = mix(0.38, 0.80, fract(seed * 7.31)), cavg = mix(0.17, 0.43, fract(seed * 7.31)); vec2 duv = fwidth(uvp); // taken here, outside the branches below: inside a branch a derivative is undefined where the neighbouring pixel takes another branch
   if (reg < 0.5) {
-    vec2 g = vec2(uvp.y * 38.0, uvp.x * 52.0); g.x += 0.5 * mod(floor(g.y), 2.0); vec2 f = fract(g) - vec2(0.5, 0.0); float d = length(vec2(f.x, (f.y - 0.62) * 0.9)); float edge = ss(0.30, 0.52, d);
-    float topv = cos(uvp.y * 6.2832);
-    col = body * (1.0 - 0.05 * edge) * (0.95 + 0.10 * vnoise(uvp * vec2(60.0, 130.0))); bBump = -edge * 0.32 + 0.06 * vnoise(uvp * vec2(240.0, 520.0));
+    vec2 g = vec2((1.0 - uvp.x) * 22.0, uvp.y * 26.0) + 0.30 * vec2(sin(uvp.x * 23.0 + 2.0 * sin(an) + seed * 40.0), sin(an * 3.0 + uvp.x * 17.0 + seed * 20.0));
+    vec2 cid, fl; vec2 fe = fthr(g, 26.0, cid, fl); float near = 1.0 - ss(0.3, 0.8, duv.x * 22.0 + duv.y * 26.0);
+    float topv = cos(an);
+    col = body * mix(0.985, 0.955 + 0.06 * h21(cid + seed * 17.0 + 1.3), near) * (1.0 + (0.04 * fe.x - 0.09 * fe.y) * near) * (0.96 + 0.08 * vnoise(vec2(uvp.x * 60.0, av * 65.0))); bBump = -max(fe.x, fe.y) * 0.34 + 0.05 * vnoise(vec2(uvp.x * 240.0, av * 260.0));
     col *= mix(1.0, 0.74, ss(0.62, 1.0, uvp.x));
     col = mix(col, col * 1.10 + 0.025, ss(0.1, -0.9, topv) * (1.0 - ss(0.45, 0.85, uvp.x)) * 0.7);
     float rump = ss(0.34, 0.24, uvp.x) * ss(0.06, 0.14, uvp.x) * ss(0.2, 0.75, topv); if (typ < 1.5) col = mix(col, vec3(0.80, 0.81, 0.82), rump * 0.75);
-    float wp = ss(1.0 - white, 1.0 - white + 0.05, vnoise(uvp * vec2(4.0, 3.0) + seed * 20.0)); col = mix(col, vec3(0.88, 0.87, 0.85), wp * step(0.01, white));
+    float wp = ss(1.0 - white, 1.0 - white + 0.05, vnoise(vec2(uvp.x * 4.0 + 0.9 * cos(an), 1.4 * sin(an)) + seed * 20.0)); col = mix(col, vec3(0.88, 0.87, 0.85), wp * step(0.01, white));
   } else if (reg < 1.5) {
     vec3 base = body * 0.60; float nv = clamp(dot(N, Vv), 0.0, 1.0);
-    vec2 g = vec2(uvp.y * 30.0, uvp.x * 22.0); g.x += 0.5 * mod(floor(g.y), 2.0); vec2 f = fract(g) - vec2(0.5, 0.0); float sc = ss(0.25, 0.5, length(vec2(f.x, (f.y - 0.6) * 0.9)));
-    float hue = uvp.x * 0.9 + nv * 0.9 + sin(uvp.y * 12.566) * 0.08; vec3 ir = mix(vec3(0.50, 0.16, 0.60), vec3(0.06, 0.60, 0.34), ss(0.75, 1.15, hue)); ir = mix(ir, vec3(0.55, 0.30, 0.10), ss(1.45, 1.75, hue) * 0.5);
+    vec2 g = vec2((1.0 - uvp.x) * 16.0, uvp.y * 24.0) + 0.26 * vec2(sin(an * 2.0 + uvp.x * 9.0 + seed * 30.0), sin(an * 3.0 - uvp.x * 13.0 + seed * 50.0));
+    vec2 cid, fl; vec2 fe = fthr(g, 24.0, cid, fl); float sc = max(fe.x * 0.7, fe.y);
+    float hue = uvp.x * 0.9 + nv * 0.9 + sin(uvp.y * 12.566) * 0.08 + (h21(cid + seed * 9.0) - 0.5) * 0.14; vec3 ir = mix(vec3(0.50, 0.16, 0.60), vec3(0.06, 0.60, 0.34), ss(0.75, 1.15, hue)); ir = mix(ir, vec3(0.55, 0.30, 0.10), ss(1.45, 1.75, hue) * 0.5);
     float amt = (0.35 + 0.65 * pow(1.0 - abs(nv - 0.6), 3.0)) * (1.0 - 0.45 * sc) * ss(0.02, 0.25, uvp.x) * (1.0 - step(2.5, typ) * 0.35);
-    col = base * (1.0 - 0.2 * sc) + ir * amt * 0.30; bRough = 0.30; bIrid = amt; bBump = -sc * 1.2;
-    float wp = ss(1.0 - white, 1.0 - white + 0.05, vnoise(uvp * vec2(3.0, 4.0) + seed * 11.0)); col = mix(col, vec3(0.86), wp * step(0.01, white));
-  } else if (reg < 2.5) { col = body * 0.62 * (0.92 + 0.16 * vnoise(uvp * vec2(60.0, 40.0))); float wp = step(0.55, white) * ss(0.35, 0.6, vnoise(uvp * 5.0 + seed * 7.0)); col = mix(col, vec3(0.86), wp); bRough = 0.5;
+    col = base * (1.0 - 0.2 * sc) + ir * amt * 0.30; bRough = 0.30; bIrid = amt; bBump = -sc * 0.85;
+    float wp = ss(1.0 - white, 1.0 - white + 0.05, vnoise(vec2(uvp.x * 3.0 + 0.9 * cos(an), 1.2 * sin(an)) + seed * 11.0)); col = mix(col, vec3(0.86), wp * step(0.01, white));
+  } else if (reg < 2.5) { col = body * 0.62 * (0.92 + 0.16 * vnoise(vec2(uvp.x * 60.0, av * 20.0))); float wp = step(0.55, white) * ss(0.35, 0.6, vnoise(vec2(uvp.x * 5.0 + 0.8 * cos(an), 0.8 * sin(an)) + seed * 7.0)); col = mix(col, vec3(0.86), wp); bRough = 0.5;
   } else if (reg < 3.5) { col = mix(vec3(0.075, 0.075, 0.085), vec3(0.20, 0.19, 0.18), ss(0.65, 1.0, uvp.x)); bRough = 0.32;
   } else if (reg < 4.5) { col = vec3(0.80, 0.78, 0.74) * (0.9 + 0.1 * vnoise(uvp * 40.0)); bRough = 0.7;
   } else if (reg < 5.5) { float a = uvp.x; col = a < 0.30 ? vec3(0.012) : (a < 0.60 ? mix(vec3(0.95, 0.55, 0.10), vec3(0.85, 0.22, 0.06), ss(0.30, 0.60, a)) : vec3(0.40, 0.38, 0.38)); bRough = a < 0.62 ? 0.04 : 0.6;
   } else if (reg < 6.5) {
     if (vPat.w < 0.25) { col = mix(vec3(0.74, 0.75, 0.76), body, 0.25); } else {
-      vec2 g = vec2(uvp.x * 26.0, uvp.y * 7.0); g.x += 0.5 * mod(floor(g.y), 2.0); vec2 cid = floor(g); vec2 f = fract(g) - vec2(0.5, 0.0); float d = length(vec2(f.x, (f.y - 0.6) * 0.9)); float edge = ss(0.26, 0.5, d);
-      col = wingc * (1.0 - 0.15 * edge);
+      vec2 g = vec2(uvp.y * 5.0, uvp.x * 22.0) + 0.4 * (vec2(vnoise(uvp * vec2(9.0, 3.0) + seed * 13.0), vnoise(uvp * vec2(8.0, 4.0) + seed * 29.0)) - 0.5);
+      vec2 cid, fl; vec2 fe = fthr(g, 1e4, cid, fl); float near = 1.0 - ss(0.3, 0.8, duv.y * 5.0 + duv.x * 22.0);
+      col = wingc * mix(0.975, 0.94 + 0.07 * h21(cid + seed * 17.0 + 1.3), near) * (1.0 + (0.04 * fe.x - 0.14 * fe.y) * near);
       float inner = 1.0 - ss(0.62, 0.74, uvp.x);
       if (typ < 0.5) { float bar = ss(0.80, 0.86, uvp.y) * inner; col = mix(col, vec3(0.05, 0.05, 0.06), bar * 0.92); }
-      else if (typ < 1.5) { float chk = step(0.42, h21(cid + seed)) * (1.0 - ss(0.18, 0.4, d)); col = mix(col, vec3(0.06, 0.06, 0.07), chk * 0.9); col = mix(col, vec3(0.05), ss(0.84, 0.9, uvp.y) * inner * 0.9); }
-      else if (typ < 2.5) { col = mix(vec3(0.07, 0.07, 0.08), wingc, edge * 0.55); }
-      else if (typ < 3.5) { col = vec3(0.045, 0.045, 0.05) * (1.0 + 0.2 * edge); }
+      else if (typ < 1.5) { col = mix(col, vec3(0.06, 0.06, 0.07), mix(cavg, chq(fl, cid, seed, cam), near) * 0.9); col = mix(col, vec3(0.05), ss(0.84, 0.9, uvp.y) * inner * 0.9); }
+      else if (typ < 2.5) { col = mix(vec3(0.07, 0.07, 0.08), wingc, 0.10 + 0.40 * fe.x * near + 0.08 * (1.0 - near)); }
+      else if (typ < 3.5) { col = vec3(0.045, 0.045, 0.05) * (1.0 + 0.2 * fe.x * near); }
       col = mix(col, col * 0.75, ss(0.7, 1.0, uvp.x));
       float wp = ss(1.0 - white, 1.0 - white + 0.06, vnoise(uvp * vec2(5.0, 2.0) + seed * 3.0)); col = mix(col, vec3(0.86), wp * step(0.01, white)); }
   } else if (reg < 7.5) {
@@ -74,14 +90,15 @@ vec3 birdAlbedo(vec3 N, vec3 Vv){
   } else if (reg < 9.5) { col = vec3(0.62, 0.17, 0.16) * (0.82 + 0.18 * sin(uvp.x * 160.0)); bRough = 0.45;
   } else if (reg < 10.5) { col = vec3(0.09, 0.08, 0.075); bRough = 0.35;
   } else { // folded wing shield: u front -> rear, v top -> bottom
-    vec2 g = vec2(uvp.x * 34.0, uvp.y * 13.0); g.y += 0.5 * mod(floor(g.x), 2.0); vec2 cid = floor(g); vec2 f = fract(g) - vec2(0.0, 0.5); float d = length(vec2((f.x - 0.62) * 0.9, f.y)); float edge = ss(0.30, 0.52, d);
-    col = wingc * (1.0 - 0.09 * edge) * (0.95 + 0.10 * vnoise(uvp * vec2(90.0, 40.0))); bBump = -edge * 0.7 + 0.08 * vnoise(uvp * vec2(420.0, 160.0));
-    float d1 = uvp.x + 0.20 * uvp.y; vec3 dark = vec3(0.055, 0.057, 0.063);
-    float bars = (ss(0.47, 0.49, d1) * (1.0 - ss(0.545, 0.565, d1)) + ss(0.655, 0.675, d1) * (1.0 - ss(0.735, 0.755, d1))) * ss(0.12, 0.3, uvp.y);
+    vec2 g = vec2(pow(uvp.x, 0.8) * 17.0, uvp.y * 6.0) + 0.5 * (vec2(vnoise(uvp * vec2(5.0, 3.0) + seed * 13.0), vnoise(uvp * vec2(4.0, 3.5) + seed * 29.0 + 4.0)) - 0.5);
+    vec2 cid, fl; vec2 fe = fthr(g, 1e4, cid, fl); float near = 1.0 - ss(0.3, 0.8, duv.x * 15.0 + duv.y * 6.0), tone = h21(cid + seed * 17.0 + 1.3);
+    col = wingc * mix(0.975, 0.94 + 0.07 * tone, near) * (1.0 + (0.05 * fe.x - 0.15 * fe.y) * near) * (0.96 + 0.08 * vnoise(uvp * vec2(90.0, 40.0))); bBump = -max(fe.x, fe.y) * 0.7 + 0.06 * vnoise(uvp * vec2(420.0, 160.0));
+    float d1 = uvp.x + 0.20 * uvp.y, d1b = d1 + 0.012 * (tone - 0.5) * near; vec3 dark = vec3(0.055, 0.057, 0.063);
+    float bars = (ss(0.47, 0.49, d1b) * (1.0 - ss(0.545, 0.565, d1b)) + ss(0.655, 0.675, d1b) * (1.0 - ss(0.735, 0.755, d1b))) * ss(0.12, 0.3, uvp.y);
     if (typ < 0.5) col = mix(col, dark, bars * 0.94);
-    else if (typ < 1.5) { float blot = ss(0.50, 0.62, vnoise(cid * 0.9 + seed * 30.0) * 0.55 + h21(cid + seed) * 0.45) * (1.0 - ss(0.16, 0.42, d)); col = mix(col, dark, blot * 0.85 * (1.0 - ss(0.72, 0.8, d1))); col = mix(col, dark, bars * 0.9); }
-    else if (typ < 2.5) col = mix(dark * 1.25, wingc, (0.10 + edge * 0.24) * (1.0 - ss(0.6, 0.8, d1)));
-    else col = dark * (0.92 + 0.22 * edge);
+    else if (typ < 1.5) { col = mix(col, dark, mix(cavg, chq(fl, cid, seed, cam), near) * 0.9 * (1.0 - ss(0.72, 0.8, d1))); col = mix(col, dark, bars * 0.9); }
+    else if (typ < 2.5) col = mix(dark * 1.25, wingc, (0.07 + 0.30 * fe.x * near + 0.08 * (1.0 - near)) * (1.0 - ss(0.6, 0.8, d1)));
+    else col = dark * (0.95 + 0.20 * fe.x * near);
     float prim = ss(0.80, 0.86, d1); col = mix(col, dark * (0.9 + 0.5 * sin(uvp.y * 60.0) * 0.3 + 0.3), prim); bBump = mix(bBump, sin(uvp.y * 60.0) * 0.8, prim);
     col = mix(col, col * 0.86 + vec3(0.02, 0.012, 0.0), ss(0.5, 0.75, uvp.x) * (1.0 - ss(0.25, 0.5, uvp.y)) * (1.0 - prim) * 0.6);
     float wp = ss(1.0 - white, 1.0 - white + 0.06, vnoise(uvp * vec2(5.0, 2.5) + seed * 3.0)); col = mix(col, vec3(0.86), wp * step(0.01, white) * (1.0 - prim * 0.5)); bRough = 0.55; }

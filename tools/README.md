@@ -26,7 +26,7 @@
 tools/run_checks.sh
 ```
 
-モジュールの構文、Chromium・WebKit・Firefox での一連の操作、ファイルの欠け、公開先の制約（厳しい CSP、入れ子のパス、サンドボックス化した別オリジンの iframe）、描画コンテキストを失ったあとの再開を順に確かめます。
+モジュールの構文、Chromium・WebKit・Firefox での一連の操作、ファイルの欠け、公開先の制約（厳しい CSP、入れ子のパス、サンドボックス化した別オリジンの iframe）、紹介ページから作品が始まるまでの流れ、描画コンテキストを失ったあとの再開を順に確かめます。
 
 ## スクリプト
 
@@ -40,7 +40,8 @@ tools/run_checks.sh
 | `xvideo.py` | `python3 tools/xvideo.py` | `media/clips` のクリップに字幕を重ね、エンドカードを付けて `media/video/hato_kyoto_x.mp4` にまとめる |
 | `xengine.py` | `python3 tools/xengine.py <chromium または webkit> "<クエリ>" <出力.png> [幅x高さ] [JS ファイル]` | 指定したエンジンで起動し、JS の操作を実行して結果とエラーを出す |
 | `xengine_ff.py` | 同上（`firefox`） | Firefox 用。`xvfb-run` の下で実行する |
-| `csptest.py` | `python3 tools/csptest.py <エンジン> [幅x高さ]` | 入れ子のパス、厳しい CSP、サンドボックス化した別オリジンの iframe で動くかを確かめる |
+| `csptest.py` | `python3 tools/csptest.py <エンジン> [幅x高さ]` | 入れ子のパス、厳しい CSP、サンドボックス化した別オリジンの iframe で動くかを確かめる。紹介ページの最初の画面を押すところから始める |
+| `lptest.py` | `python3 tools/lptest.py <エンジン> <shots または flow> [出力の接頭辞]` | 紹介ページの確認。`shots` は PC とスマートフォンの幅で画面ごとに撮り、欠けた画像と横へのはみ出しを報告する。`flow` は最初の画面を押して作品が始まるまでを確かめ、音が再生状態か、再読み込みで作品に戻るか、リンクで紹介ページに戻れるかを見る。Firefox は `xvfb-run` の下で実行する |
 | `net404.py` | `python3 tools/net404.py "<クエリ>"` | すべての取得を記録し、失敗したものを出す |
 | `losttest.py` | `python3 tools/losttest.py` | 描画コンテキストを 3 回強制的に失わせ、画質を下げて再開するかを確かめる |
 | `audiochk.py` | `python3 tools/audiochk.py` | `audiotest.js` で 11 種の音をオフラインで合成し、ピークとスペクトルを計算する。WAV も書き出す |
