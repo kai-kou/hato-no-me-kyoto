@@ -273,8 +273,9 @@ ${turfBlk}
       } else if (mt < 1.5) {
         diffuseColor.rgb *= 1.0 + (vnoise(tp * 70.0) - 0.5) * 0.07 * OCT(70.0);
         if (vFace.z > 0.0) { vec2 q = vFace.xy; float k = ss(0.30, 0.62, vFace.z), ax = abs(q.x), bx = ax - 0.42;
-          float eye = 1.0 - ss(0.72, 1.08, length(vec2(ax - 0.40, q.y - 0.045) / vec2(0.175, 0.060)));
-          float wht = (1.0 - ss(0.75, 1.05, length(vec2(ax - 0.40, q.y - 0.045) / vec2(0.165, 0.050)))) * ss(0.35, 0.60, abs(ax - 0.40) / 0.165);
+          vec2 ey = vec2(ax - 0.40, q.y - 0.045); float eh = 0.047 * max(0.0, 1.0 - pow(ey.x / 0.178, 2.0)) + 0.0005, eo = (1.0 - ss(0.80, 1.0, abs(ey.y + 0.004) / eh)) * step(abs(ey.x), 0.178);   // almond opening
+          float ir = length(ey / vec2(0.078, 0.050)), iris = (1.0 - ss(0.86, 1.0, ir)) * eo, pup = (1.0 - ss(0.36, 0.46, ir)) * eo, hi = (1.0 - ss(0.10, 0.20, length((ey - vec2(sign(q.x) * 0.024 * sign(q.x) - 0.022, 0.016)) / vec2(0.078, 0.050)))) * eo;
+          float lash = (1.0 - ss(0.0, 0.016, abs(ey.y + 0.004 - eh * 0.96))) * step(abs(ey.x), 0.20) * step(0.0, ey.y + 0.02), eye = 0.0, wht = 0.0;
           float lid = 1.0 - ss(0.4, 1.25, length(vec2(ax - 0.40, q.y - 0.12) / vec2(0.27, 0.12)));
           float brow = 1.0 - ss(0.70, 1.10, length(vec2(bx, q.y - 0.245 + 0.9 * bx * bx - 0.04 * bx) / vec2(0.215, 0.034)));
           float mouth = 1.0 - ss(0.70, 1.10, length(vec2(q.x, q.y + 0.545) / vec2(0.26, 0.030)));
@@ -282,7 +283,7 @@ ${turfBlk}
           float nost = 1.0 - ss(0.5, 1.1, length(vec2(ax - 0.085, q.y + 0.335) / vec2(0.055, 0.030)));
           float cheek = 1.0 - ss(0.2, 1.1, length(vec2(ax - 0.52, q.y + 0.22) / vec2(0.30, 0.22)));
           vec3 c = diffuseColor.rgb; c = mix(c, c * vec3(1.04, 0.86, 0.84), cheek * 0.35 * k); c = mix(c, c * vec3(0.93, 0.60, 0.58), lip * 0.55 * k); c *= 1.0 - lid * 0.26 * k; c = mix(c, vec3(0.030, 0.024, 0.020), brow * 0.62 * k);
-          c = mix(c, vec3(0.018, 0.014, 0.013), eye * 0.92 * k); c = mix(c, vec3(0.42, 0.40, 0.38), wht * 0.55 * k); c = mix(c, c * vec3(0.42, 0.26, 0.26), mouth * 0.8 * k); c *= 1.0 - nost * 0.45 * k; diffuseColor.rgb = c; }
+          c = mix(c, vec3(0.66, 0.63, 0.60) * (0.62 + 0.38 * ss(-0.5, 0.6, -ey.y / eh)), eo * k); c = mix(c, vec3(0.085, 0.050, 0.032) * (1.0 + 0.9 * ss(0.45, 0.95, ir)), iris * k); c = mix(c, vec3(0.008), pup * k); c = mix(c, vec3(0.85), hi * 0.8 * k); c = mix(c, vec3(0.020, 0.016, 0.014), lash * 0.85 * k); c = mix(c, c * vec3(0.42, 0.26, 0.26), mouth * 0.8 * k); c *= 1.0 - nost * 0.45 * k; diffuseColor.rgb = c; }
         else if (vFace.z < -1.5) { float fy = ss(0.50, 0.62, vFace.y), g = abs(fract(vFace.x * 2.0 + 0.5) - 0.5); diffuseColor.rgb *= 1.0 - 0.5 * fy * (1.0 - ss(0.03, 0.10, g)) * step(abs(vFace.x), 0.8); }
       } else if (mt < 2.5) { float a = atan(bp.x, bp.z); float st = vnoise(vec2(a * 26.0, bp.y * 16.0)) * 0.6 + vnoise(vec2(a * 80.0, bp.y * 34.0)) * 0.4 * OCT(900.0); diffuseColor.rgb *= 0.62 + 0.8 * st; hBump = st * 1.6; }
       else if (mt < 3.5) { diffuseColor.rgb *= 1.0 + (vnoise(tp * 160.0) - 0.5) * 0.12 * OCT(160.0); }

@@ -136,7 +136,9 @@ export function buildPerson(o) { LODK = o.lod ? 0.72 : 1; LODR = o.lod ? 1 : 0;
   const hs = f ? 0.955 : 1, hd = [B.head, 1], face = (p, mat) => [p[0] / (0.075 * hs), (p[1] - HC) / (HH * hs), (p[2] - HZ) / (0.09 * hs), mat];
   const headRings = (grow) => refine(HEAD.map(h => ring(HC + h[0] * HH * hs, (h[2] * (f && h[0] < -0.3 ? 0.94 : 1) + grow) * hs, (h[3] + grow) * hs, (h[4] + grow) * hs, hd, { z: HZ + h[1] * hs, e: 2.15 })), 2);
   loft(G, headRings(0), 22, { mat: SKIN, col: C.skin, face, aof: (p) => 1 - 0.42 * sm(-0.55, -1.0, (p[1] - HC) / (HH * hs)) });
-  ellipsoid(G, [0, HC - 0.024 * hs, HZ + 0.0885 * hs], [0.0118 * hs, 0.0215 * hs, 0.0135 * hs], { sk: hd, col: C.skin, mat: SKIN, rotX: -0.34, n: 5, seg: 8, face });   // nose
+  ellipsoid(G, [0, HC - 0.012 * hs, HZ + 0.0815 * hs], [0.0062 * hs, 0.0260 * hs, 0.0095 * hs], { sk: hd, col: C.skin, mat: SKIN, rotX: -0.30, n: 5, seg: 8, face });   // nose: bridge, tip, wings
+  ellipsoid(G, [0, HC - 0.035 * hs, HZ + 0.0885 * hs], [0.0085 * hs, 0.0080 * hs, 0.0100 * hs], { sk: hd, col: C.skin, mat: SKIN, n: 5, seg: 8, face });
+  for (const sx of [1, -1]) ellipsoid(G, [sx * 0.0090 * hs, HC - 0.0385 * hs, HZ + 0.0830 * hs], [0.0058 * hs, 0.0052 * hs, 0.0068 * hs], { sk: hd, col: C.skin, mat: SKIN, n: 4, seg: 6, face });
   for (const sx of [1, -1]) ellipsoid(G, [sx * 0.0765 * hs, HC - 0.006 * hs, HZ - 0.006 * hs], [0.0085 * hs, 0.029 * hs, 0.017 * hs], { sk: hd, col: mul(C.skin, 0.94), mat: SKIN, rotX: 0.2, n: 4, seg: 8 });
   if (o.mask) loft(G, refine([ring(HC - 0.108 * hs, 0.030 * hs, 0.050 * hs, 0.01, hd, { z: HZ + 0.030 }), ring(HC - 0.085 * hs, 0.058 * hs, 0.070 * hs, 0.01, hd, { z: HZ + 0.020 }), ring(HC - 0.050 * hs, 0.070 * hs, 0.080 * hs, 0.01, hd, { z: HZ + 0.018 }), ring(HC - 0.018 * hs, 0.072 * hs, 0.079 * hs, 0.01, hd, { z: HZ + 0.016 }), ring(HC - 0.004 * hs, 0.060 * hs, 0.074 * hs, 0.01, hd, { z: HZ + 0.018 })], 2), 16, { mat: CLOTH, col: [0.72, 0.74, 0.76], capA: { col: [0.7, 0.72, 0.74] }, capB: { col: [0.7, 0.72, 0.74] } });
   hair(G, o, C, hs, f);

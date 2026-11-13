@@ -59,6 +59,25 @@ function frame(now) {
   if (!app.shown) { app.shown = true; app.boot.shown = Math.round(performance.now() - T0); const ld = $('loading'); if (ld) ld.classList.add('done'); document.body.classList.add('ready'); }   // the loading screen stays until the first frame is on the screen
 }
 
+// Large static meshes are split into spatial chunks that share the vertex buffers, so that the frustum test can leave out what is off screen.
+// The ground was one mesh of 424,000 triangles with a 335 m bounding sphere, the seated and standing people one of 199,000: neither was ever left out,
+// and the pigeon's-eye view draws the scene six times. The original mesh stays where it was (visibility, material and uniforms still go through it) but is taken off every layer.
+function chunkStatic(root, minTris = 40000, minR = 60) {
+  const list = []; let made = 0;
+  root.traverse(o => { const g = o.geometry; if (o.isMesh && !o.isInstancedMesh && !o.isSkinnedMesh && !o.userData.chunked && o.frustumCulled && g && g.index && !Array.isArray(o.material) && !g.groups.length && !g.morphAttributes.position && g.attributes.position && !g.attributes.position.isInterleavedBufferAttribute) list.push(o); });
+  for (const m of list) { const g = m.geometry, idx = g.index.array, P = g.attributes.position.array; if (idx.length / 3 < minTris || g.drawRange.start !== 0 || g.drawRange.count < idx.length) continue;
+    if (!g.boundingSphere) g.computeBoundingSphere(); if (g.boundingSphere.radius < minR) continue;
+    const cell = Math.max(32, g.boundingSphere.radius / 4), bins = new Map();   // about eight cells across (84 m for the ground, 40 m for the seated people): smaller cells leave out more triangles but cost a draw call each, six times over in the pigeon's-eye view
+    for (let t = 0; t < idx.length; t += 3) { const a = idx[t] * 3, b = idx[t + 1] * 3, c = idx[t + 2] * 3, k = (Math.floor((P[a] + P[b] + P[c]) / 3 / cell) + 512) * 1024 + Math.floor((P[a + 2] + P[b + 2] + P[c + 2]) / 3 / cell) + 512;
+      let arr = bins.get(k); if (!arr) bins.set(k, arr = []); arr.push(idx[t], idx[t + 1], idx[t + 2]); }
+    if (bins.size < 2) continue;
+    for (const arr of bins.values()) { const cg = new THREE.BufferGeometry(); for (const k in g.attributes) cg.setAttribute(k, g.attributes[k]); cg.setIndex(new THREE.BufferAttribute(new idx.constructor(arr), 1));
+      const box = new THREE.Box3(), v = new THREE.Vector3(); for (let i = 0; i < arr.length; i++) { const q = arr[i] * 3; box.expandByPoint(v.set(P[q], P[q + 1], P[q + 2])); } cg.boundingBox = box; cg.boundingSphere = box.getBoundingSphere(new THREE.Sphere());
+      const cm = new THREE.Mesh(cg, m.material); cm.castShadow = m.castShadow; cm.receiveShadow = m.receiveShadow; cm.renderOrder = m.renderOrder; cm.layers.mask = m.layers.mask; cm.onBeforeRender = m.onBeforeRender; cm.onAfterRender = m.onAfterRender;
+      if (m.customDepthMaterial) cm.customDepthMaterial = m.customDepthMaterial; if (m.customDistanceMaterial) cm.customDistanceMaterial = m.customDistanceMaterial; cm.userData = Object.assign({}, m.userData, { chunked: true }); m.add(cm); made++; }
+    m.userData.chunked = true; m.layers.disableAll(); }
+  return made;
+}
 (async () => {
   try {
     await world.load(onProg, app.stage); world.setHour(app.hour);
@@ -67,12 +86,13 @@ function frame(now) {
     if (qs.get('refl')) app.reflY = +qs.get('refl');
     if (qs.get('dof')) { const d = qs.get('dof').split(',').map(Number); post.opts.dofOn = true; post.opts.focus = d[0]; post.opts.aperture = d[1]; }
     const mod = await import('./game.js'); await mod.start(app);
+    if (!qs.get('nochunk')) app.boot.chunks = chunkStatic(scene);
     // compile the shaders of the scene before the first frame, in the background where the browser can (KHR_parallel_shader_compile): otherwise the first frame blocks the page for as long as that takes
     await app.stage('gpu', '描画の準備中（初回は少し時間がかかります）');
     if (!qs.get('nopre')) { try { renderer.setRenderTarget(post.rt); if (renderer.extensions.has('KHR_parallel_shader_compile')) await Promise.race([renderer.compileAsync(scene, camera), new Promise(r => setTimeout(r, 25000))]); else renderer.compile(scene, camera); } catch (e) { console.warn('precompile: ' + (e && e.message)); } renderer.setRenderTarget(null); }
     app.boot.ready = Math.round(performance.now() - T0); setBar(100);
     app.ready = true;
-    world.bg.then(() => { app.bgDone = true; }).catch(e => console.warn('background load: ' + e.message));
+    world.bg.then(() => { if (!qs.get('nochunk')) app.boot.chunks += chunkStatic(scene); app.bgDone = true; }).catch(e => console.warn('background load: ' + e.message));
   } catch (e) { console.error(e); const el = $('err'); if (el) { el.textContent = '読み込みに失敗しました: ' + (e && e.message || e); el.style.display = 'block'; } }
 })();
 requestAnimationFrame(frame);
