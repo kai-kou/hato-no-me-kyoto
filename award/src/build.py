@@ -141,7 +141,7 @@ slide('TU', 'ハトの目と群れを、ブラウザで描く。', '''<div class
 <ul>
 <li>ハトの頭の骨の位置から 6 方向を撮って立方体マップにし、シェーダーで左 160° から右 160° に展開する</li>
 <li>縦持ちのスマートフォンでは、上段を左目、下段を右目の 2 段に分ける</li>
-<li>ハトは 2,976 頂点、15 本の骨。骨の姿勢をテクスチャに書き込み、最大 93 羽を 1 回の描画命令で描く</li>
+<li>ハトは 2,976 頂点、15 本の骨。骨の姿勢をテクスチャに書き込み、最大 93 羽（ハト 90 羽とトビ 3 羽）を 1 回の描画命令で描く</li>
 <li>地面は空中写真の上に砂利をコードで重ね、ハトのそば半径 3〜4 m には小石を約 2,600〜4,800 個、立体で置く</li>
 <li>音は 11 種をブラウザ上で合成する。音声ファイルは 1 つも使っていない</li>
 </ul>
@@ -158,7 +158,7 @@ slide('U', '5 つの視点と、3 つの関わり方。', '''<div class="body" s
 </div>
 <div style="display:grid;grid-template-columns:1.15fr 1fr 0.5fr;gap:26px;min-height:0">
 <ul>
-<li style="font-size:18px"><b>エサをまく</b>　6 m 以内で採餌中のハトが寄ってくる</li>
+<li style="font-size:18px"><b>エサをまく</b>　55 m 以内の地上のハトと、110 m 以内を飛んでいるハトの多くが寄ってくる</li>
 <li style="font-size:18px"><b>手をたたく</b>　近くの群れが一斉に飛び立つ</li>
 <li style="font-size:18px"><b>ハトになる</b>　1 羽を選び、歩く、ついばむ、羽ばたいて飛ぶ</li>
 </ul>
@@ -204,13 +204,15 @@ slide('PT', '実機なしで、どこまで確かめたか。', '''<div class="b
 <p class="note">画質は端末に合わせて自動で選ぶ。描画が間に合わなければ内部解像度を下げ、描画が止まれば 1 段下げて自動で再開する。</p>
 <div class="card" style="border-color:var(--shu)"><p style="font-size:16px;font-weight:700;margin-bottom:6px">確かめられていないこと</p><p style="font-size:15.5px;line-height:1.75">実機でのフレームレート、耳で聴いた音の印象、GPU とドライバーごとの差。作品の「i」ボタンに、その端末で選ばれた画質、1 コマの平均時間、内部解像度、GPU 名を表示して、手元で確かめられるようにした。</p></div>
 </div>
-<div><table>
+<div><table style="font-size:14.5px;line-height:1.5">
 <tr><th>確かめたこと</th><th>方法と結果</th></tr>
-<tr><td class="k">3 つのエンジン</td><td>Chromium、WebKit 26.6、Firefox で、全視点の切り替え、エサ、手たたき、手動飛行、夜への切り替えを自動操作。エラーなし</td></tr>
+<tr><td class="k">3 つのエンジン</td><td>Chromium、WebKit 26.6、Firefox で、全視点、エサ、手たたき、手動飛行、夜への切り替えを自動操作。エラーなし</td></tr>
 <tr><td class="k">スマートフォンの画面</td><td>縦 390×844 と横向きを、タッチ操作つきでエミュレート。ボタンの重なりなし</td></tr>
-<tr><td class="k">公開先の制約</td><td>厳しい CSP、入れ子のパス、サンドボックス化した別オリジンの iframe を再現。起動し、音声が再生状態になる</td></tr>
+<tr><td class="k">公開先の制約</td><td>厳しい CSP と、サンドボックス化した別オリジンの iframe を再現。起動し、音声が再生状態になる</td></tr>
 <tr><td class="k">描画の中断</td><td>描画コンテキストを 3 回失わせ、高→中→低と下げて再開することを確認</td></tr>
 <tr><td class="k">音</td><td>11 種をオフラインで合成し、ピークとスペクトルを計算。音割れなし</td></tr>
+<tr><td class="k">タップとボタン</td><td>実際の入力イベントを送って 18 項目を確認</td></tr>
+<tr><td class="k">音の出力</td><td>出力波形を計測し −21〜−29 dB の信号を確認。耳で聴いた確認ではない</td></tr>
 </table>
 <p class="note" style="margin-top:10px">確認はすべてソフトウェア描画で行った。実装と検証を担当した AI には、実機がない。</p></div>
 </div>''', credit=False)
@@ -266,7 +268,7 @@ out = ['<!DOCTYPE html><html lang="ja"><head><meta charset="utf-8"><title>鳩の
 out.append('''<section class="s cover"><img class="bg" src="img/gion.jpg" alt=""><div class="in">
 <div class="crit" style="font-size:13.5px"><span class="on">PLATEAU AWARD 2026</span><span style="color:rgba(243,237,226,.9);border-color:rgba(243,237,226,.5)">一般部門　アイデア・アプリ提案</span></div>
 <h1>鳩の目、京都。</h1>
-<p class="lead">PLATEAU の LOD3 で再構成した先斗町・鴨川・祇園白川を、<br>ドバトの目で歩いて飛ぶブラウザ作品</p>
+<p class="lead">PLATEAU の 3D 都市モデルで再構成した先斗町・鴨川・祇園白川を、<br>ドバトの目で歩いて飛ぶブラウザ作品</p>
 <div class="meta"><span>%s</span><span>%s</span></div>
 <p class="cr">%s。国土交通省、国土地理院、京都市が内容を保証するものではありません。</p>
 </div></section>''' % (URL, REPO, CREDIT))
