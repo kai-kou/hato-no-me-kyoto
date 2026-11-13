@@ -136,11 +136,12 @@ function hooks(kind, Q) {
   if (kind === 'bld') {
     fAlb += `{ float mag = 1.0 / max(1e-5, length(fwidth(vMapUv * uTexSize))); float k = ss(1.2, 5.0, mag);
       vec2 tp = abs(hWN.y) > 0.6 ? vWPos.xz : (abs(hWN.x) > abs(hWN.z) ? vWPos.zy : vWPos.xy);
-      // each octave is turned by a different angle: axis-aligned octaves added up to a canvas-like weave on magnified walls
-      vec2 t1 = mat2(0.80, 0.60, -0.60, 0.80) * tp, t2 = mat2(-0.35, 0.94, -0.94, -0.35) * tp, t3 = mat2(0.52, -0.85, 0.85, 0.52) * tp;
-      float fw = max(fwidth(tp.x), fwidth(tp.y));   // an octave fades out before it gets close to pixel size (otherwise the bump turns into a screen-door pattern)
-      float g = (vnoise(t1 * 47.0) - 0.5) * 0.5 * OCT(47.0) + (vnoise(t2 * 131.0 + 3.1) - 0.5) * 0.32 * OCT(131.0) + (vnoise(t3 * 380.0 + 7.3) - 0.5) * 0.18 * OCT(380.0);
-      float streak = (vnoise(vec2(tp.x * 210.0 + vnoise(tp * 6.0) * 2.0, tp.y * 7.0)) - 0.5) * (0.6 + 0.8 * vnoise(tp * 1.7)) * OCT(210.0);
+      // grain for magnified walls only (most wall pixels skip it). Each octave is turned by a different angle: axis-aligned octaves added up to a canvas-like weave.
+      // An octave fades out before it gets close to pixel size, otherwise the bump turns into a screen-door pattern.
+      float g = 0.0, streak = 0.0, fw = max(fwidth(tp.x), fwidth(tp.y));
+      if (k > 0.02) { vec2 t1 = mat2(0.80, 0.60, -0.60, 0.80) * tp, t2 = mat2(-0.35, 0.94, -0.94, -0.35) * tp, t3 = mat2(0.52, -0.85, 0.85, 0.52) * tp;
+        g = (vnoise(t1 * 47.0) - 0.5) * 0.5 * OCT(47.0) + (vnoise(t2 * 131.0 + 3.1) - 0.5) * 0.32 * OCT(131.0) + (vnoise(t3 * 380.0 + 7.3) - 0.5) * 0.18 * OCT(380.0);
+        streak = (vnoise(vec2(tp.x * 210.0 + vnoise(tp * 6.0) * 2.0, tp.y * 7.0)) - 0.5) * (0.6 + 0.8 * vnoise(tp * 1.7)) * OCT(210.0); }
 #ifdef USE_MAP
       if (k > 0.02) { vec2 px = 0.75 / uTexSize; vec3 ctr = texture2D(map, vMapUv).rgb, nb = (texture2D(map, vMapUv + vec2(px.x, 0.0)).rgb + texture2D(map, vMapUv - vec2(px.x, 0.0)).rgb + texture2D(map, vMapUv + vec2(0.0, px.y)).rgb + texture2D(map, vMapUv - vec2(0.0, px.y)).rgb) * 0.25;
 ${hi ? `        vec3 cr = hCR(map, vMapUv, uTexSize);   // magnified photo: Catmull-Rom instead of bilinear (no stair-steps along edges), then a mild unsharp mask
