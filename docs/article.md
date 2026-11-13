@@ -300,9 +300,11 @@ AI には実機がありません。そこで、手元で動かせるものを�
 | --- | --- | --- |
 | 建物、都市設備、道路、橋梁、植生 | 3D都市モデル（京都市、2025 年度）。建築物 LOD3・LOD2、その他は LOD3 | [国土交通省 Project PLATEAU](https://www.mlit.go.jp/plateau/)。配布は [G空間情報センター](https://www.geospatial.jp/ckan/dataset/plateau) |
 | 地形、水面の範囲 | 地理院タイルの標高タイル（DEM1A、DEM5A、DEM10B）を加工して作成 | [国土地理院コンテンツ利用規約](https://www.gsi.go.jp/kikakuchousei/kikakuchousei40182.html) |
-| 地面の色 | 地理院タイルのシームレス空中写真を加工して作成 | 同上 |
+| 地面の色 | 地理院タイルのシームレス空中写真を加工して作成。遠景はズームレベル 12 で、データソースは Landsat8 画像（GSI, TSIC, GEO Grid/AIST）、Landsat8 画像（courtesy of the U.S. Geological Survey）、海底地形（GEBCO） | 同上 |
 | ハトの両眼視野の幅 | Martin, G. R. & Young, S. R. (1983) The retinal binocular field of the pigeon. Vision Research 23(9), 911–915 | [PubMed 6636551](https://pubmed.ncbi.nlm.nih.gov/6636551/) |
 | 納涼床の期間 | 鴨川納涼床、2026 年 5 月 1 日から 10 月 15 日 | [京都観光Navi](https://ja.kyoto.travel/event/single.php?event_id=4902) |
 | 描画ライブラリ | three.js r170（MIT License） | [three.js](https://threejs.org/) |
 
 PLATEAU のオープンデータは、出典を表記すれば複製、加工、商用利用ができます（[国土交通省の発表資料](https://www.mlit.go.jp/common/001418346.pdf)）。実装と検証は Claude Fable 5.2 が行いました。
+
+コード、データ変換パイプライン、撮影と検証のスクリプトは [GitHub の kai-kou/hato-no-me-kyoto](https://github.com/kai-kou/hato-no-me-kyoto) で公開しています。
