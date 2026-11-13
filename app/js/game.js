@@ -31,6 +31,14 @@ export const ETHO = {
   flush: ['一斉飛翔', '1羽の急な飛び立ちが群れ全体に伝わり、ほぼ同時に舞い上がる。旋回して元の場所へ戻ることが多い。'],
   roost: ['ねぐら', '日没前後に軒下や橋桁などのねぐらへ戻り、朝まで動かない。この作品では夜の画面で見えるように、街灯の届く場所に寄せてある。'],
 };
+// where and when to look for each behaviour: shown in the ethogram while it is still unseen
+const ETHO_HINT = {
+  peck: '地上の群れ。朝と夕方に多い。エサをまくと確実', walk: '地上を歩くハトを追う', look: '歩く合間に、首を伸ばして止まる瞬間',
+  takeoff: '群れが場所を移るとき。「手をたたく」でも見られる', fly: '飛び立ったハトを追う', glide: '飛行の途中や、着地の手前', land: '飛行の終わり。エサをまくと降りてくる',
+  preen: '昼どき、軒や欄干で休んでいる群れ', sun: '昼どき、休んでいるハトがときどき翼を上げる', rest: '昼どきの高い場所。食後のハト', sleep: '休んでいるハトが目を閉じる。夜はねぐらで',
+  court: '地上の群れの中。オスがメスのそばで喉をふくらませる', drink: '鴨川の西岸の水際。まれなので、時間の流れを速めて探す', bathe: '鴨川の西岸の浅瀬。水飲みよりさらにまれ',
+  flush: '「手をたたく」。トビが近づいたときにも起こる', roost: '左上の時刻から「夜」へ。軒先や納涼床の上',
+};
 const ETHO_KEYS = Object.keys(ETHO);
 const MODES = ['eye', 'chase', 'tele', 'over', 'cine'];
 const MODE_HINT = { eye: 'ハトの視野（約320°）を1枚に展開', chase: 'ドラッグで回り込み・ピンチで距離', tele: '望遠レンズで観察。ドラッグで回り込み', over: '上空から群れを俯瞰。タップでハト選択・エサ', cine: '自動カメラ' };
@@ -76,7 +84,9 @@ export async function start(app) {
   const placeOf = (x, z) => x < -88 ? '先斗町' : x < -57 ? '鴨川 西岸・納涼床の下' : x < -12 ? '鴨川' : x < 38 ? '川端通' : (z < -18 ? '祇園白川' : '祇園');
 
   // ---------------------------------------------------------------- actions
-  function setMode(m) { if (!MODES.includes(m)) return; S.mode = m; S.snap = true; S.shot = null; S.shotT = 0; if (m === 'chase') { S.chaseYaw = B().yaw; ORB.chase.yaw = 0; } if (m === 'over') S.overT.set(B().pose.x, B().pose.y, B().pose.z); if (m === 'eye') { S.eyeYaw = B().yaw; } if (m === 'tele') teleYaw(ORB.tele.yaw); if (S.manual && (m === 'tele' || m === 'cine')) setManual(false); ui.modes(); toast(MODE_HINT[m]); }
+  // the one strip that both eyes see is the point of the pigeon's-eye view: it is lit up for a few seconds the first two times the view opens
+  function bandIntro() { if (!S.started || (S.bandN || 0) >= 2) return; S.bandN = (S.bandN || 0) + 1; const c = document.body.classList; c.remove('band'); void document.body.offsetWidth; c.add('band'); clearTimeout(S.bandT); S.bandT = setTimeout(() => c.remove('band'), 6500); }
+  function setMode(m) { if (!MODES.includes(m)) return; S.mode = m; S.snap = true; S.shot = null; S.shotT = 0; if (m === 'chase') { S.chaseYaw = B().yaw; ORB.chase.yaw = 0; } if (m === 'over') S.overT.set(B().pose.x, B().pose.y, B().pose.z); if (m === 'eye') { S.eyeYaw = B().yaw; bandIntro(); } if (m === 'tele') teleYaw(ORB.tele.yaw); if (S.manual && (m === 'tele' || m === 'cine')) setManual(false); ui.modes(); toast(MODE_HINT[m]); }
   // how much of the line from the lens to the bird is blocked. The map is 2.5-D (ground, roofs, furniture tops), which is enough to keep the lens out of walls, decks and fences.
   const crowns = app.scenery && app.scenery.crowns || [];
   const inCrown = (x, y, z) => { for (const c of crowns) { if (y < c[1] + c[3] * 0.2 || y > c[1] + c[3] + 0.4) continue; const dx = x - c[0], dz = z - c[2], r = c[4] * 1.05; if (dx * dx + dz * dz < r * r) return true; } return false; };
@@ -250,7 +260,7 @@ export async function start(app) {
   // ---------------------------------------------------------------- input
   const coarse = matchMedia('(pointer: coarse)').matches, cv = renderer.domElement, ptr = new Map(); let pinch = 0, tapT = 0, tapX = 0, tapY = 0, moved = 0;
   const orb = () => S.mode === 'cine' ? (S.shot && S.shot.k === 'over' ? ORB.over : S.shot && S.shot.k === 'chase' ? ORB.chase : ORB.tele) : ORB[S.mode];
-  cv.addEventListener('pointerdown', e => { try { cv.setPointerCapture(e.pointerId); } catch (err) { } ptr.set(e.pointerId, { x: e.clientX, y: e.clientY }); if (ptr.size === 1) { tapT = e.timeStamp; tapX = e.clientX; tapY = e.clientY; moved = 0; } if (ptr.size === 2) { const p = [...ptr.values()]; pinch = Math.hypot(p[0].x - p[1].x, p[0].y - p[1].y); } });
+  cv.addEventListener('pointerdown', e => { try { cv.setPointerCapture(e.pointerId); } catch (err) { } if (e.isPrimary && ptr.size) { ptr.clear(); pinch = 0; }   /* a primary pointer going down means nothing else is down: a release that never arrived (lost to another window, a system gesture) must not leave every later tap looking like a pinch */ ptr.set(e.pointerId, { x: e.clientX, y: e.clientY }); if (ptr.size === 1) { tapT = e.timeStamp; tapX = e.clientX; tapY = e.clientY; moved = 0; } if (ptr.size === 2) { const p = [...ptr.values()]; pinch = Math.hypot(p[0].x - p[1].x, p[0].y - p[1].y); } });
   cv.addEventListener('pointermove', e => { const p = ptr.get(e.pointerId); if (!p) return; const dx = e.clientX - p.x, dy = e.clientY - p.y; p.x = e.clientX; p.y = e.clientY; const o = orb();
     if (ptr.size === 1 && o) { moved += Math.abs(dx) + Math.abs(dy); if (moved > 6) { o.yaw -= dx * 0.0055; o.pitch = clamp(o.pitch + dy * 0.004, S.mode === 'over' ? 0.25 : -0.12, 1.5); S.lastDrag = S.t; } }
     else if (ptr.size === 2 && o) { const q = [...ptr.values()], d = Math.hypot(q[0].x - q[1].x, q[0].y - q[1].y); if (pinch > 0) o.dist = clamp(o.dist * pinch / Math.max(d, 1), o.min, o.max); pinch = d; S.lastDrag = S.t; moved = 99; } });
@@ -267,6 +277,7 @@ export async function start(app) {
     dir.set(u * 2 - 1, v * 2 - 1, 0.5).unproject(camera).sub(camera.position).normalize(); return { o: camera.position, ppr: r.height / 2 / Math.tan(camera.fov * 0.5 / DEGR) }; }
   const tapFx = (px, py) => { const el = document.createElement('i'); el.className = 'tapfx'; el.style.left = px + 'px'; el.style.top = py + 'px'; document.body.appendChild(el); setTimeout(() => el.remove(), 560); };
   // for the checks: where a tap at this screen point would land (ground point, wall, or nothing)
+  app.ptrN = () => ptr.size;
   app.tapProbe = (px, py) => { const dir = tapDir, ray = tapRay(px, py, dir), o = ray.o; let t = 0.2; for (let i = 0; i < 400 && t < 900; i++) { const x = o.x + dir.x * t, y = o.y + dir.y * t, z = o.z + dir.z * t; if (y <= nav.ground(x, z)) return { hit: [+x.toFixed(2), +z.toFixed(2)], t: +t.toFixed(2), walk: nav.walkable(x, z), cls: nav.cls(x, z) }; const rf = nav.roof(x, z); if (rf > -900 && y < rf - 0.05 && !nav.walkable(x, z)) return { wall: true, t: +t.toFixed(2) }; t += Math.max(0.04, t * 0.03); } return { none: true, dir: [+dir.x.toFixed(2), +dir.y.toFixed(2), +dir.z.toFixed(2)], o: [+o.x.toFixed(1), +o.y.toFixed(2), +o.z.toFixed(1)] }; };
   function tap(px, py) {
     if (!S.started) return; const dir = tapDir, ray = tapRay(px, py, dir), o = ray.o; tapFx(px, py);
@@ -288,7 +299,7 @@ export async function start(app) {
     modes() { document.querySelectorAll('#modes button').forEach(el => { const o = el.dataset.m === S.mode; el.classList.toggle('on', o); el.setAttribute('aria-pressed', o ? 'true' : 'false'); }); document.body.dataset.mode = S.mode; },
     manual() { document.body.classList.toggle('manual', S.manual); const el = $('btnFly'); if (el) { el.classList.toggle('on', S.manual); el.setAttribute('aria-pressed', S.manual ? 'true' : 'false'); el.innerHTML = S.manual ? '観察に<br>もどる' : 'ハトに<br>なる'; } },
     card(flash) { const b = B(), e = ETHO[S.act] || ETHO.look; $('bname').textContent = `No.${String(b.i + 1).padStart(2, '0')}　${b.morph.n}　${b.male ? '♂' : '♀'}`; $('bact').textContent = e[0]; $('bnote').textContent = e[1]; if (flash) { const c = $('card'); c.classList.remove('flash'); void c.offsetWidth; c.classList.add('flash'); } },
-    etho(k) { const n = ETHO_KEYS.filter(x => S.seen[x]).length; $('ethoN').textContent = `${n}/${ETHO_KEYS.length}`; if (k) { toast(`行動図鑑に追加：${ETHO[k][0]}`, true); if (n === ETHO_KEYS.length) setTimeout(() => toast('行動図鑑コンプリート！'), 2800); } const L = $('ethoList'); if (L) L.innerHTML = ETHO_KEYS.map(x => `<li class="${S.seen[x] ? 'ok' : ''}"><b>${S.seen[x] ? ETHO[x][0] : '？？？'}</b><span>${S.seen[x] ? ETHO[x][1] : 'まだ観察していない行動'}</span></li>`).join(''); },
+    etho(k) { const n = ETHO_KEYS.filter(x => S.seen[x]).length; $('ethoN').textContent = `${n}/${ETHO_KEYS.length}`; if (k) { toast(`行動図鑑に追加：${ETHO[k][0]}`, true); if (n === ETHO_KEYS.length) setTimeout(() => toast('行動図鑑コンプリート！'), 2800); } const L = $('ethoList'); if (L) L.innerHTML = ETHO_KEYS.map(x => `<li class="${S.seen[x] ? 'ok' : ''}"><b>${S.seen[x] ? ETHO[x][0] : '？？？'}</b><span>${S.seen[x] ? ETHO[x][1] : 'ヒント：' + ETHO_HINT[x]}</span></li>`).join(''); },
     tick() { const h = app.hour, hh = Math.floor(h), mm = Math.floor((h - hh) * 60), b = B(); $('clock').textContent = `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`; $('place').textContent = placeOf(camera.position.x, camera.position.z); const tr = $('timeRange'); if (tr && document.activeElement !== tr) tr.value = h;
       const st = $('stat'); if (st) { let g = 0, ro = 0, f = 0; for (const q of flock.B) { if (q.air) f++; else if (q.st === 'roost') ro++; else g++; } st.textContent = (ro ? `ねぐら ${ro}羽・` : '') + `地上 ${g}羽・飛行 ${f}羽`; }
       const pk = $('btnPeck'); if (pk) pk.classList.toggle('dis', S.manual && b.air);
@@ -324,7 +335,7 @@ export async function start(app) {
   const fb = $('btnFlap'); if (fb) { const dn = e => { e.preventDefault(); input.flap = true; }, upf = () => { input.flap = false; }; fb.addEventListener('pointerdown', dn); fb.addEventListener('pointerup', upf); fb.addEventListener('pointercancel', upf); fb.addEventListener('pointerleave', upf); }
   const stick = $('stick'), knob = $('knob'); if (stick) { let id = null; const set = e => { const r = stick.getBoundingClientRect(), x = (e.clientX - r.left - r.width / 2) / (r.width / 2), y = (e.clientY - r.top - r.height / 2) / (r.height / 2), m = Math.hypot(x, y), k = m > 1 ? 1 / m : 1; input.mx = x * k; input.my = -y * k; knob.style.transform = `translate(${input.mx * 32}px, ${-input.my * 32}px)`; };
     stick.addEventListener('pointerdown', e => { id = e.pointerId; stick.setPointerCapture(id); set(e); }); stick.addEventListener('pointermove', e => { if (e.pointerId === id) set(e); }); const end = () => { id = null; input.mx = input.my = 0; knob.style.transform = ''; }; stick.addEventListener('pointerup', end); stick.addEventListener('pointercancel', end); }
-  on('btnStart', () => { try { snd.start(window.__hatoAC || undefined); } catch (e) { console.warn('audio: ' + e.message); } S.started = true; document.body.classList.add('started'); setTimeout(() => toast('左上の時刻を押すと、夜や雨上がり、画質を選べます'), 9000); setMode(qs.get('m') || 'eye'); ui.card(true); setTimeout(() => toast('地面をタップでエサ／ハトをタップで観察する相手を変更'), 4200); });
+  on('btnStart', () => { try { snd.start(window.__hatoAC || undefined); } catch (e) { console.warn('audio: ' + e.message); } S.started = true; document.body.classList.add('started'); if (S.mode === 'eye') { bandIntro(); setTimeout(() => toast('明るく縁どった帯だけが、両目で見えている範囲（約27°）'), 1200); } setTimeout(() => toast('左上の時刻を押すと、夜や雨上がり、画質を選べます'), 9000); setMode(qs.get('m') || 'eye'); ui.card(true); setTimeout(() => toast('地面をタップでエサ／ハトをタップで観察する相手を変更'), 4200); });
   on('btnHide', () => { $('timePanel').classList.remove('on'); S.ui = false; S.hideT = S.t; document.body.classList.add('noui'); toast('撮影モード：画面をタップで戻る'); });
   addEventListener('pointerdown', () => { if (!S.ui && S.t - (S.hideT || 0) > 0.6) { S.ui = true; document.body.classList.remove('noui'); } }, true);
   if (S.started) document.body.classList.add('started');

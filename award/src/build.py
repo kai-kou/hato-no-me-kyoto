@@ -217,19 +217,28 @@ slide('PT', '実機なしで、どこまで確かめたか。', '''<div class="b
 <p class="note" style="margin-top:10px">確認はすべてソフトウェア描画で行った。実装と検証を担当した AI には、実機がない。</p></div>
 </div>''', credit=False)
 
-slide('P', '開けばすぐ動き、作り方もそのまま使える。', '''<div class="body" style="grid-template-columns:1fr 1fr 1fr;gap:20px">
-<div class="card"><p style="font-family:var(--disp);font-size:22px;letter-spacing:.08em;margin-bottom:12px">すぐ開ける</p><ul>
-<li style="font-size:17px">インストール不要。リンクを開き、紹介ページの画面を 1 回押せば始まる</li>
-<li style="font-size:17px">静的ファイルだけで動く。別のホスティングにもそのまま置ける</li>
-<li style="font-size:17px">動かない端末でも、紹介ページの動画と画面で内容が分かる</li></ul></div>
-<div class="card"><p style="font-family:var(--disp);font-size:22px;letter-spacing:.08em;margin-bottom:12px">作り方を公開している</p><ul>
-<li style="font-size:17px">コードは MIT License、文章・画像・動画は CC BY 4.0</li>
-<li style="font-size:17px">舞台選びの調査スクリプト、6 段の変換パイプライン、撮影と検証のスクリプトを公開</li>
-<li style="font-size:17px">つまずいた 13 か所と、公開後に届いたプレイの報告 9 件への対処を、制作の記録にまとめた</li></ul></div>
-<div class="card"><p style="font-family:var(--disp);font-size:22px;letter-spacing:.08em;margin-bottom:12px">想定する使い道<span class="note" style="font-family:var(--body);margin-left:8px">提案。効果は未検証</span></p><ul>
-<li style="font-size:17px">3D 都市モデルに初めて触れる人への入口</li>
-<li style="font-size:17px">街歩きの前後に、同じ路地を別の高さから見直す</li>
-<li style="font-size:17px">都市と身近な生き物を、一緒に学ぶ教材</li></ul></div>
+slide('P', '開けばすぐ動き、作り方もそのまま使える。', '''<div class="body" style="grid-template-columns:1fr 1fr 1fr;gap:16px 20px;align-content:start">
+<div class="card"><p style="font-family:var(--disp);font-size:22px;letter-spacing:.08em;margin-bottom:8px">すぐ開ける</p><ul>
+<li style="font-size:16px">インストール不要。リンクを開き、紹介ページの画面を 1 回押せば始まる</li>
+<li style="font-size:16px">静的ファイルだけで動く。別のホスティングにもそのまま置ける</li>
+<li style="font-size:16px">動かない端末でも、紹介ページの動画と画面で内容が分かる</li></ul></div>
+<div class="card"><p style="font-family:var(--disp);font-size:22px;letter-spacing:.08em;margin-bottom:8px">作り方を公開している</p><ul>
+<li style="font-size:16px">コードは MIT License、文章・画像・動画は CC BY 4.0</li>
+<li style="font-size:16px">舞台選びの調査、6 段の変換、撮影と検証のスクリプトを公開</li>
+<li style="font-size:16px">つまずいた 13 か所と、届いたプレイの報告 9 件への対処を記録にまとめた</li></ul></div>
+<div class="card"><p style="font-family:var(--disp);font-size:22px;letter-spacing:.08em;margin-bottom:8px">想定する使い道<span class="note" style="font-family:var(--body);margin-left:8px">提案。効果は未検証</span></p><ul>
+<li style="font-size:16px">3D 都市モデルに初めて触れる人への入口</li>
+<li style="font-size:16px">街歩きの前後に、同じ路地を別の高さから見直す</li>
+<li style="font-size:16px">都市と身近な生き物を、一緒に学ぶ教材</li></ul></div>
+<div style="grid-column:1 / -1;display:grid;grid-template-columns:auto 1fr 1fr;gap:20px;align-items:stretch">
+<div class="card" style="display:flex;gap:16px;align-items:center;padding:12px 18px"><img src="img/qr.svg" style="width:100px;height:100px;border-radius:5px" alt="作品の URL の QR コード"><div><p style="font-family:var(--disp);font-size:19px;letter-spacing:.08em;margin-bottom:4px">その場で開く</p><p class="note" style="max-width:190px">カメラで読むと、作品の紹介ページが開く</p></div></div>
+<div class="card" style="padding:12px 18px"><p style="font-family:var(--disp);font-size:19px;letter-spacing:.08em;margin-bottom:6px">必要なもの</p><ul>
+<li style="font-size:15px;margin-bottom:4px">WebGL 2 に対応したブラウザ（PC・スマートフォン）</li>
+<li style="font-size:15px;margin-bottom:0">起動時の読み込みは約 21 MB</li></ul></div>
+<div class="card" style="padding:12px 18px"><p style="font-family:var(--disp);font-size:19px;letter-spacing:.08em;margin-bottom:6px">確かめたこと</p><ul>
+<li style="font-size:15px;margin-bottom:4px">Chromium・WebKit・Firefox での自動検査</li>
+<li style="font-size:15px;margin-bottom:0">実機での速度と音は未確認</li></ul></div>
+</div>
 <p class="note" style="grid-column:1 / -1">他の市区への適用は試していない。舞台の範囲と原点は設定ファイルの定数で、調査スクリプトは東京都港区や沼津市の LOD3 にも使った。変換パイプラインは、最後の段の出力が公開中のデータとバイト単位で一致することを確認している。</p>
 </div>''', credit=False)
 

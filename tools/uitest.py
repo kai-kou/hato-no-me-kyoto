@@ -40,6 +40,9 @@ window.__t = {
       // the tap itself is asked where it would land: ground under a deck is fair game, a point hidden behind a wall or a bank is not
       if (a.tapProbe) { const pr = a.tapProbe(s[0], s[1]); if (!pr.hit || !pr.walk || pr.cls === 1 || Math.hypot(pr.hit[0] - x, pr.hit[1] - z) > 1.0) continue; } else if (nav.roof(x, z) > -900) continue;
       let m = 1e9; for (const q of f.B) { const t = fn(q.pose.x, q.pose.y, q.pose.z); if (t) m = Math.min(m, Math.hypot(t[0] - s[0], t[1] - s[1])); } if (m > bd) { bd = m; best = { x: s[0], y: s[1], clear: m, wx: x, wz: z }; } }
+    // nothing around the bird passed (seen from 20 cm up, a bump of a few centimetres hides the ground behind it): ask the tap itself, point by point across the screen
+    if (!best && a.tapProbe) for (let j = 3; j <= 17; j++) for (let i = 7; i <= 17; i++) { const sx = innerWidth * i / 20, sy = innerHeight * j / 20; if (sx < 330 || sx > innerWidth - 110 || sy < 70 || sy > innerHeight - 90) continue; const pr = a.tapProbe(sx, sy); if (!pr.hit || !pr.walk || pr.cls === 1 || nav.furn(pr.hit[0], pr.hit[1]) > -900) continue;
+      let m = 1e9; for (const q of f.B) { const t = fn(q.pose.x, q.pose.y, q.pose.z); if (t) m = Math.min(m, Math.hypot(t[0] - sx, t[1] - sy)); } if (m > bd) { bd = m; best = { x: sx, y: sy, clear: m, wx: pr.hit[0], wz: pr.hit[1] }; } }
     return best; },
   near: (wx, wz) => __app.flock.food.filter(q => Math.hypot(q.x - wx, q.z - wz) < 1.6).length,
 };
@@ -126,23 +129,19 @@ try:
         else:
             ok('panorama: click on a pigeon changes the watched bird', False, 'no pigeon stands clear in the panorama')
         frames(3)
-        g = T('t.ground(t.pano)')
-        for _ in range(12):   # the feed thrown by the earlier steps draws the flock around the camera; wait for a gap
-            if g: break
-            frames(6); g = T('t.ground(t.pano)')
-        c0 = T('t.counts()')
+        # found and pressed in one step inside the page: the panorama turns with the bird's head, and a frame of the software renderer between the two would put the press on another spot (or on the sky)
+        TAPG = """(() => { const t = window.__t, g = t.ground(t.pano); if (!g) return null; g.n0 = t.near(g.wx, g.wz);
+          const c = document.getElementById('c'), ev = k => c.dispatchEvent(new PointerEvent(k, { pointerId: 1, pointerType: 'mouse', isPrimary: true, clientX: g.x, clientY: g.y, bubbles: true })); ev('pointerdown'); ev('pointerup'); g.n1 = t.near(g.wx, g.wz); return g; })()"""
+        g = None
+        for _ in range(14):   # the feed thrown by the earlier steps draws the flock around the camera, and a point behind a deck is refused, rightly: try again after a few frames
+            g = pg.evaluate(TAPG)
+            if g and g['n1'] >= g['n0'] + 15: break
+            if not g:   # the watched bird may be up on an eave, from where no open ground shows: move on to a bird that stands on open ground
+                pg.evaluate('''() => { const a = window.__app, nav = a.world.nav, key = t => window.dispatchEvent(new KeyboardEvent(t, { code: 'KeyN', bubbles: true }));
+                  for (let k = 0; k < 95; k++) { key('keydown'); key('keyup'); const b = a.flock.B[a.S.focus]; if (!b.air && nav.walkable(b.x, b.z) && nav.roof(b.x, b.z) < -900 && Math.abs(b.y - nav.ground(b.x, b.z)) < 0.3) break; } }''')
+            frames(6)
         if g:
-            # sent from inside the page: through the driver the press and the release are two commands, and under load they can be more than the 0.6 s of a tap apart
-            click = lambda q: pg.evaluate('''([x, y]) => { const c = document.getElementById('c'), ev = t => c.dispatchEvent(new PointerEvent(t, { pointerId: 1, pointerType: 'mouse', isPrimary: true, clientX: x, clientY: y, bubbles: true })); ev('pointerdown'); ev('pointerup'); }''', [q['x'], q['y']])
-            n0 = T('t.near(%f, %f)' % (g['wx'], g['wz']))
-            click(g)
-            n1 = T('t.near(%f, %f)' % (g['wx'], g['wz']))
-            for _ in range(4):   # a point behind a deck or an eave is refused, rightly: pick again after the bird has moved on
-                if n1 >= n0 + 15 or '建物にはまけない' not in T('t.toast()'): break
-                frames(8); g2 = T('t.ground(t.pano)')
-                if not g2: continue
-                g = g2; n0 = T('t.near(%f, %f)' % (g['wx'], g['wz'])); click(g); n1 = T('t.near(%f, %f)' % (g['wx'], g['wz']))
-            ok('panorama: click on the ground scatters feed there', n1 >= n0 + 15, 'crumbs within 1.6 m: %d -> %d, toast "%s", probe %s' % (n0, n1, T('t.toast()'), pg.evaluate('([x, y]) => JSON.stringify(window.__app.tapProbe ? window.__app.tapProbe(x, y) : null)', [g['x'], g['y']])))
+            ok('panorama: click on the ground scatters feed there', g['n1'] >= g['n0'] + 15, 'crumbs within 1.6 m: %d -> %d, toast "%s", pointers held %s' % (g['n0'], g['n1'], T('t.toast()'), pg.evaluate('window.__app.ptrN ? window.__app.ptrN() : -1')))
         else:
             ok('panorama: click on the ground scatters feed there', False, 'no clear ground in the panorama')
         pg.screenshot(path=out + '_pano.png')
