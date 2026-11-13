@@ -7,7 +7,7 @@ IMG = HERE + '/img/'
 URL = 'https://claude.ai/artifact/L6dDhAnGZur167TMmp6hdM'
 REPO = 'https://github.com/kai-kou/hato-no-me-kyoto'
 CRIT = [('A', '3D都市モデルの活用'), ('I', 'アイデア'), ('U', 'UI・UX・デザイン'), ('T', '技術力'), ('P', '実用性')]
-NAME = os.environ.get('HATO_AWARD_NAME', '').strip()   # the applicant's public name for the last page; left out of the copy kept in the repository
+NAME = os.environ.get('HATO_AWARD_NAME', '').strip()   # the applicant's public name for the last page (the PDF kept in the repository carries it too; a build without the variable leaves the line out)
 NAME_HTML = '<p class="note" style="margin-top:10px">応募者　%s</p>' % html.escape(NAME) if NAME else ''
 CREDIT = '画面は、国土交通省 Project PLATEAU の 3D 都市モデル（京都市、2025 年度）と国土地理院の地理院タイルを加工して作成'
 slides = []
