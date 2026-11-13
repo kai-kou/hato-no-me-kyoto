@@ -9,7 +9,7 @@ while i<len(args):
     if a=='--size': W,H=map(int,args[i+1].split('x')); i+=2
     elif a=='--wait': wait=float(args[i+1]); i+=2
     elif a=='--mobile': mobile=True; i+=1
-    elif a=='--js': js=args[i+1]; qs[-1]=(qs[-1][0],js); i+=2
+    elif a=='--js': js=args[i+1]; js=open(js).read() if os.path.isfile(js) else js; qs[-1]=(qs[-1][0],js); i+=2   # a file, or the JavaScript itself
     else: qs.append((a,None)); i+=1
 srv=subprocess.Popen(['python3','-m','http.server','8777','--directory',APP],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL); time.sleep(0.8)
 try:

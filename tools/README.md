@@ -33,7 +33,7 @@ tools/run_checks.sh
 | スクリプト | 使い方 | 内容 |
 | --- | --- | --- |
 | `jscheck.sh` | `tools/jscheck.sh [アプリの場所]` | ES モジュールの構文チェック。`node --check` は `.js` をモジュールとして解釈しないので、`.mjs` に写して調べる |
-| `shoot.py` | `python3 tools/shoot.py <出力の接頭辞> "<クエリ>" [--js ファイル] [--size 幅x高さ] [--wait 秒] [--mobile]` | 静止画を撮り、描画命令数やコンソールのエラーを出す。クエリは複数並べられる |
+| `shoot.py` | `python3 tools/shoot.py <出力の接頭辞> "<クエリ>" [--js ファイルまたは式] [--size 幅x高さ] [--wait 秒] [--mobile]` | 静止画を撮り、描画命令数やコンソールのエラーを出す。クエリは複数並べられ、`--js` は直前のクエリに付く |
 | `strip.py` | `python3 tools/strip.py <出力.png> "<クエリ>" [コマ数] [幅x高さ] [切り抜き]` | 連続したコマを 1 枚に並べる。動きの確認用 |
 | `rec2.py` | `python3 tools/rec2.py <出力.mp4> "<クエリ>" <コマ数> <幅x高さ> <fps> <ポート> <JS ファイル> [助走コマ数]` | 固定の時間刻みで 1 コマずつ進めて録画する。JS ファイルは録画前にページ内で実行する演出 |
 | `rec.py` | `python3 tools/rec.py <出力.mp4> "<クエリ>" <コマ数> <幅x高さ> [fps] [ポート]` | 演出なしの録画 |
