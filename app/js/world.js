@@ -215,6 +215,15 @@ ${hi ? `        vec3 cr = hCR(map, vMapUv, uTexSize);   // magnified photo: Catm
 ${bankBlk}${peb}
       float gst = (vnoise(vec2(dot(p, vec2(0.8, 0.6)) * 170.0, dot(p, vec2(-0.6, 0.8)) * 34.0)) + vnoise(vec2(dot(p, vec2(-0.5, 0.86)) * 150.0, dot(p, vec2(0.86, 0.5)) * 30.0)) - 1.0) * 0.5 * OCT(170.0);
 ${turfBlk}
+      // built-up ground: next to the walls and in back alleys the aerial photo shows the roofs above, and elsewhere one of its pixels is half a metre wide.
+      // A man-made surface is drawn there instead: always where buildings close in, and near the camera everywhere. The photo still sets most of its tone,
+      // so asphalt stays dark and paving stays light.
+      float apr = max(1.0 - ss(0.56, 0.80, nv.r), 1.0 - ss(22.0, 64.0, dist)) * inR * (1.0 - bank) * (1.0 - green) * (1.0 - deckK) * ss(0.86, 0.96, hWN.y);
+      if (apr > 0.01) { float st = vnoise(p * 1.3 + 21.3);
+        vec3 mor = mix(vec3(0.300, 0.296, 0.284), mix(vec3(dot(base, vec3(0.3333))), base, 0.4), 0.62) * (1.0 + m1 * 0.16 + n1 * 0.14 + n2 * 0.12 + n3 * 0.16 + n4 * 0.15 + n5 * 0.12 + grain * 0.20 + grain2 * 0.12);
+        mor *= mix(1.0, 0.74, ss(0.48, 0.80, st) * 0.7) * mix(0.80, 1.0, ss(0.28, 0.56, nv.r));   // damp patches; grime builds up towards the walls
+        mor = mix(mor, vec3(0.085, 0.105, 0.050), ss(0.62, 0.86, vnoise(p * 3.1 + 11.9)) * (1.0 - ss(0.30, 0.46, nv.r)) * 0.35);   // a little moss in the tightest corners
+        c = mix(c, mor, apr); hgt = mix(hgt, n3 * 0.30 + n4 * 0.34 + n5 * 0.24 + grain * 0.24, apr); }
       // Kawabata-dori: the aerial photo smears trees and cars over the carriageway, so asphalt and markings are drawn in code
       float rm = 0.0, rd = deckK; if (nv.a * inR > 0.01 || deckK > 0.01) { float ru = nv.b * 18.0 + 3.0, ra = nv.a * inR, sj = step(ra, 0.8); rm = ss(4.35, 4.65, ru) * (1.0 - ss(18.35, 18.65, ru)) * ss(0.15, 0.42, ra) * ss(0.9, 1.2, vWPos.y); rd = max(rm, deckK);
         float fwm = max(fw, 1e-4), box = mix(1.0 - ss(141.0, 144.0, p.y) * (1.0 - ss(162.0, 165.0, p.y)), 1.0 - ss(110.0, 124.0, p.x), sj), along = mix(p.y, p.x, sj);
@@ -424,7 +433,7 @@ export class World {
     const Q = this.Q, TINT = { fence: [[0.19, 0.13, 0.09], 0.5], deck: [[0.36, 0.27, 0.19], 0.45], iron: [[0.09, 0.09, 0.095], 0.2], conc: [[0.46, 0.45, 0.43], 0.25], metal: [[0.20, 0.21, 0.22], 0.15], misc: [[0.33, 0.30, 0.27], 0.3] }; const frnMats = {};
     for (const it of pak.json.items) {
       const g = this._geom(pak, it); let mat;
-      if (it.tex) { const e = this.tex.e[it.tex], t = this.meta.tex[it.tex]; mat = cityMaterial('bld', Q, { params: { map: e.tex }, uniforms: { uTexSize: { value: new THREE.Vector2(t.w / 8, t.h / 8) }, uLift: { value: it.tex.startsWith('bldg2') ? 1 : 0 } } }); e.mat = mat; }
+      if (it.tex) { const e = this.tex.e[it.tex], t = this.meta.tex[it.tex]; mat = cityMaterial('bld', Q, { params: { map: e.tex }, uniforms: { uTexSize: { value: new THREE.Vector2(t.w / 8, t.h / 8) }, uLift: { value: it.tex.startsWith('bldg2') ? 1 : 0 } } }); mat.shadowSide = THREE.DoubleSide; e.mat = mat; }   // both faces cast: with back faces only, the sun leaked in under walls that stop short of the ground
       else if (it.kind === 'frnp') { const c = it.cls || 'misc'; mat = frnMats[c] || (frnMats[c] = cityMaterial('frnp', Q, { rough: c === 'iron' || c === 'metal' ? 0.5 : 0.9, uniforms: { uTint: { value: new THREE.Color(...TINT[c][0]) }, uGrain: { value: TINT[c][1] } } })); }
       else if (it.kind === 'road') mat = this.roadMat || (this.roadMat = cityMaterial('road', Q, { rough: 0.82, env: 0.8 }));
       else if (it.kind === 'bridge') mat = frnMats._br || (frnMats._br = cityMaterial('frnp', Q, { uniforms: { uTint: { value: new THREE.Color(0.40, 0.385, 0.36) }, uGrain: { value: 0.3 } } }));
@@ -466,7 +475,13 @@ export class World {
     // core terrain
     { const nx = Math.floor((c.w - 1) / st), nz = Math.floor((c.h - 1) / st), pos = new Float32Array((nx + 1) * (nz + 1) * 3), uv = new Float32Array((nx + 1) * (nz + 1) * 2), idx = [], B = meta.core;
       for (let j = 0; j <= nz; j++) for (let i = 0; i <= nx; i++) { const k = j * (nx + 1) + i, gi = i * st, gj = j * st, x = c.x0 + (gi + 0.5) * c.res, z = c.z0 + (gj + 0.5) * c.res, q = gj * c.w + gi; let y = nav.G[q] / 100; if (nav.C[q] === 2) y -= 0.05; pos[k * 3] = x; pos[k * 3 + 1] = y; pos[k * 3 + 2] = z; uv[k * 2] = clamp((x - B.x0) / (B.x1 - B.x0), 0, 1); uv[k * 2 + 1] = clamp((z - B.z0) / (B.z1 - B.z0), 0, 1); }
-      const skip = (gi, gj) => { const q = gj * c.w + gi; return nav.C[q] === 3; };
+      // The terrain is left out under buildings, but only well inside them. The building class of the grid also covers eaves, recessed fronts and passages,
+      // where the ground is in view: leaving it out there opened holes onto the sky colour along the foot of the walls.
+      const dB = new Float32Array(NN); for (let k = 0; k < NN; k++) dB[k] = nav.C[k] === 3 ? 1e9 : 0;
+      { const rl = (k, q, d) => { if (dB[q] + d < dB[k]) dB[k] = dB[q] + d; };
+        for (let j = 0; j < c.h; j++) for (let i = 0; i < c.w; i++) { const k = j * c.w + i; if (i > 0) rl(k, k - 1, 1); if (j > 0) { rl(k, k - c.w, 1); if (i > 0) rl(k, k - c.w - 1, 1.414); if (i < c.w - 1) rl(k, k - c.w + 1, 1.414); } }
+        for (let j = c.h - 1; j >= 0; j--) for (let i = c.w - 1; i >= 0; i--) { const k = j * c.w + i; if (i < c.w - 1) rl(k, k + 1, 1); if (j < c.h - 1) { rl(k, k + c.w, 1); if (i < c.w - 1) rl(k, k + c.w + 1, 1.414); if (i > 0) rl(k, k + c.w - 1, 1.414); } } }
+      const DEEP = 6 / c.res, skip = (gi, gj) => dB[gj * c.w + gi] > DEEP;   // more than 6 m from the nearest cell that is not under a building
       for (let j = 0; j < nz; j++) for (let i = 0; i < nx; i++) { const a = j * (nx + 1) + i, b = a + 1, d = a + nx + 1, e = d + 1; if (skip(i * st, j * st) && skip((i + 1) * st, j * st) && skip(i * st, (j + 1) * st) && skip((i + 1) * st, (j + 1) * st)) continue; idx.push(a, d, b, b, d, e); }
       const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.BufferAttribute(uv, 2)); g.setIndex(idx); g.computeVertexNormals();
       const m = new THREE.Mesh(g, mk(null)); m.receiveShadow = true; m.castShadow = false; m.matrixAutoUpdate = false; this.terrain = m; this.scene.add(m); load('t/ortho_core.webp', (t, bmp) => { m.material.map = t; m.material.needsUpdate = true; this._green(bmp); }); }
