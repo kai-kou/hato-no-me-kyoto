@@ -9,10 +9,10 @@ FONT = os.environ.get('HATO_FONT', '/usr/share/fonts/opentype/noto/NotoSansCJK-B
 # (candidate files, caption, start seconds, maximum seconds)
 CLIPS = [
     (['v19_clip_6_gion_kimono.mp4'], '祇園・新橋通。人が近づくと、ハトは歩いて道を空ける', 0.9, 5.6),
-    (['v21_clip_1_hato_no_me.mp4', 'v16_clip_1_hato_no_me.mp4', 'v12_clip_1_hato_no_me.mp4', 'v11_clip_1_hato_no_me.mp4'], 'ハトの目。視野は約320°、下に見えるのは自分のくちばし', 0, 4.0),
-    (['v21_clip_3_flush_overview.mp4', 'v18_clip_3_flush_overview.mp4', 'v12_clip_3_flush_overview.mp4', 'v11_clip_3_flush_overview.mp4'], '手をたたくと、群れが一斉に飛び立つ', 0.5, 3.8),
-    (['v12_clip_2_kamogawa.mp4', 'v11_clip_2_kamogawa.mp4'], '行動に台本はない。空腹と渇きと時刻で決まる', 0, 3.6),
-    (['v21_clip_5_pontocho.mp4', 'v16_clip_5_pontocho.mp4', 'v12_clip_5b_pontocho_hi.mp4', 'v12_clip_5_pontocho.mp4'], '先斗町。壁は PLATEAU LOD3 の実写テクスチャ', 0, 4.2),
+    (['v21_clip_1_hato_no_me.mp4'], 'ハトの目。視野は約320°、下に見えるのは自分のくちばし', 0, 4.0),
+    (['v21_clip_3_flush_overview.mp4'], '手をたたくと、群れが一斉に飛び立つ', 0.5, 3.8),
+    (['v12_clip_2_kamogawa.mp4'], '行動に台本はない。空腹と渇きと時刻で決まる', 0, 3.6),
+    (['v21_clip_5_pontocho.mp4'], '先斗町。壁は PLATEAU LOD3 の実写テクスチャ', 0, 4.2),
     (['v11_clip_4_gion_night.mp4'], '夜の祇園白川', 0, 4.6),
 ]
 W, H = 1280, 720
@@ -40,6 +40,7 @@ def end_card(path, secs=2.2, fps=30):
     t = '鳩の目、京都。'; d.text(((W - d.textlength(t, font=f1)) / 2, 236), t, font=f1, fill=(245, 242, 235))
     t = '先斗町・鴨川・祇園白川を、ハトの目で歩くブラウザ作品'; d.text(((W - d.textlength(t, font=f2)) / 2, 340), t, font=f2, fill=(214, 210, 200))
     t = '実装: Claude Fable 5.2 ／ three.js r170'; d.text(((W - d.textlength(t, font=f2)) / 2, 386), t, font=f2, fill=(214, 210, 200))
+    t = 'github.com/kai-kou/hato-no-me-kyoto'; d.text(((W - d.textlength(t, font=f2)) / 2, 446), t, font=f2, fill=(176, 190, 204))
     t = '出典: 国土交通省 Project PLATEAU（京都市 2025年度）、国土地理院 地理院タイルを加工して作成'; d.text(((W - d.textlength(t, font=f3)) / 2, 596), t, font=f3, fill=(150, 148, 142))
     png = TMP + '/end.png'; im.save(png)
     subprocess.run(['ffmpeg', '-y', '-loglevel', 'error', '-loop', '1', '-framerate', str(fps), '-t', str(secs), '-i', png, '-vf', 'fade=t=in:st=0:d=0.3', '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-crf', '16', '-r', str(fps), path], check=True)
