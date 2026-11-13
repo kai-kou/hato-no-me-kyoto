@@ -149,27 +149,27 @@ slide('TU', 'ハトの目と群れを、ブラウザで描く。', '''<div class
 </div>''' % (fig('ui_tele.jpg', '望遠の視点。操作パネルも含めた実際の画面').replace('<img ', '<img style="flex:none;height:auto" '), fig('m_eye.jpg', '縦持ちでの「ハトの目」。上段が左目、下段が右目').replace('<img ', '<img style="flex:none;height:auto" ')))
 
 slide('U', '5 つの視点と、3 つの関わり方。', '''<div class="body" style="gap:18px;align-content:start">
-<div class="shots">
-<figure><img src="img/ui_eye.jpg" alt="ハトの目"><figcaption><b>ハトの目</b>左右約 320° を 1 枚に展開</figcaption></figure>
+<div class="shots" style="display:grid;grid-template-columns:452px 216px 216px 1fr;gap:6px 12px">
+<figure style="grid-row:span 2"><img src="img/ui_eye.jpg" alt="ハトの目"><figcaption><b>ハトの目</b>左右約 320° を 1 枚に展開</figcaption></figure>
 <figure><img src="img/ui_chase.jpg" alt="追う"><figcaption><b>追う</b>すぐ後ろから。自分で歩かせ、飛ばせる</figcaption></figure>
 <figure><img src="img/ui_tele.jpg" alt="望遠"><figcaption><b>望遠</b>背景をぼかして 1 羽を観察</figcaption></figure>
 <figure><img src="img/ui_over.jpg" alt="俯瞰"><figcaption><b>俯瞰</b>上空から群れ全体を見下ろす</figcaption></figure>
 <figure><img src="img/ui_cine.jpg" alt="シネマ"><figcaption><b>シネマ</b>カメラが自動で切り替わる</figcaption></figure>
+<figure style="grid-column:4;grid-row:1 / span 2;position:relative;min-height:0"><img src="img/ui_etho.jpg" alt="行動図鑑" style="position:absolute;inset:0 0 44px 0;width:100%;height:calc(100% - 44px);aspect-ratio:auto;object-fit:cover;object-position:62% top"><figcaption style="position:absolute;left:0;bottom:0"><b>行動図鑑</b>全 16 種を記録</figcaption></figure>
 </div>
-<div style="display:grid;grid-template-columns:1.15fr 1fr 0.5fr;gap:26px;min-height:0">
+<div style="display:grid;grid-template-columns:1.15fr 1fr;gap:26px;min-height:0">
 <ul>
-<li style="font-size:18px"><b>エサをまく</b>　55 m 以内の地上のハトと、110 m 以内を飛んでいるハトの多くが寄ってくる</li>
-<li style="font-size:18px"><b>手をたたく</b>　近くの群れが一斉に飛び立つ</li>
-<li style="font-size:18px"><b>ハトになる</b>　1 羽を選び、歩く、ついばむ、羽ばたいて飛ぶ</li>
+<li style="font-size:16px"><b>エサをまく</b>　55 m 以内の地上のハトと、110 m 以内を飛んでいるハトの多くが寄ってくる</li>
+<li style="font-size:16px"><b>手をたたく</b>　近くの群れが一斉に飛び立つ</li>
+<li style="font-size:16px"><b>ハトになる</b>　1 羽を選び、歩く、ついばむ、羽ばたいて飛ぶ</li>
 </ul>
 <ul>
-<li style="font-size:18px">観察できた行動は「行動図鑑」に記録される。全 16 種、それぞれに短い解説</li>
-<li style="font-size:18px">時刻は 0 時から 24 時まで連続に変えられる</li>
-<li style="font-size:18px">縦持ちと横持ちの両方に合わせたボタン配置</li>
+<li style="font-size:16px">観察できた行動は「行動図鑑」に記録される。全 16 種、それぞれに短い解説</li>
+<li style="font-size:16px">時刻は 0 時から 24 時まで連続に変えられる</li>
+<li style="font-size:16px">縦持ちと横持ちの両方に合わせたボタン配置</li>
 </ul>
-%s
 </div>
-</div>''' % fig('ui_etho.jpg', '行動図鑑'))
+</div>''')
 
 slide('IT', '群れは、台本なしで動く。', '''<div class="body c2">
 <ul>
@@ -236,7 +236,7 @@ slide('P', '開けばすぐ動き、作り方もそのまま使える。', '''<d
 slide('', 'できていないこと。', '''<div class="body c2">
 <ul>
 <li style="font-size:18.5px">季節は、納涼床が出ている 10 月中旬に固定している。桜や紅葉は再現できない</li>
-<li style="font-size:18.5px">人の顔と指は簡略で、2〜3 m まで近づくと作り物だと分かる</li>
+<li style="font-size:18.5px">人の顔と手は簡略で、2〜3 m まで近づくと作り物だと分かる。目と鼻は描き直したが、手は指の分かれていない形のまま</li>
 <li style="font-size:18.5px">LOD3 があるのは先斗町通と祇園白川沿いだけ。少し離れると LOD2 の箱形の建物になる</li>
 </ul>
 <ul>
