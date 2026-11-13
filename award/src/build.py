@@ -265,7 +265,7 @@ slide('', '出典と制作体制。', '''<div class="body c2" style="gap:36px">
 <p class="note">文献：Martin, G. R. &amp; Young, S. R. (1983) The retinal binocular field of the pigeon. Vision Research 23(9), 911–915.　ソフトウェア：three.js r170（MIT License）。</p>
 </div>
 <div style="display:grid;gap:16px;align-content:start">
-<div class="card"><p class="note">制作体制</p><p style="font-size:18px;line-height:1.75;margin-top:4px">個人の作品です。指示は応募者、実装と検証は AI（Claude Fable 5.2）が行いました。ハト、トビ、人、車、樹木の枝葉、鴨川の橋、水面、空、音は、データを使わずにコードで生成しています。</p>%s</div>
+<div class="card"><p class="note">制作体制</p><p style="font-size:18px;line-height:1.75;margin-top:4px">個人の作品です。指示は応募者、実装と検証は AI（Claude Fable 5.2）が行いました。制作と検証には Meta Muse も利用しました。ハト、トビ、人、車、樹木の枝葉、鴨川の橋、水面、空、音は、データを使わずにコードで生成しています。</p>%s</div>
 <div class="card"><p class="note">作品（紹介ページから始められます）</p><p style="font-size:17px;margin-top:2px;word-break:break-all">%s</p><p class="note" style="margin-top:12px">ソースコード、変換パイプライン、制作の記録</p><p style="font-size:17px;margin-top:2px;word-break:break-all">%s</p></div>
 <p class="note">コードは MIT License、文章・画像・動画は CC BY 4.0。データを加工した成果物は、元データの利用条件に従います。</p>
 </div>

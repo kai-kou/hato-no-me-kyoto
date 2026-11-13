@@ -8,7 +8,7 @@
 
 ![祇園・新橋通を歩く着物の人と、道を空けるハト](media/stills/gion_kimono.jpg)
 
-実装と検証は AI（Claude Fable 5.2）が行いました。出した指示、AI が下した技術判断、つまずいた点、確かめられたことと確かめられなかったことは [docs/article.md](docs/article.md) にまとめています。約 30 秒の紹介動画は [media/video/hato_kyoto_x.mp4](media/video/hato_kyoto_x.mp4) です。
+実装と検証は AI（Claude Fable 5.2）が行いました。制作と検証には Meta Muse も利用しました。出した指示、AI が下した技術判断、つまずいた点、確かめられたことと確かめられなかったことは [docs/article.md](docs/article.md) にまとめています。約 30 秒の紹介動画は [media/video/hato_kyoto_x.mp4](media/video/hato_kyoto_x.mp4) です。
 
 ## 規模
 
@@ -26,7 +26,7 @@
 
 | ディレクトリ | 内容 |
 | --- | --- |
-| [app/](app/) | 作品本体と紹介ページ。静的ファイルだけで動く公開ビルド（v33） |
+| [app/](app/) | 作品本体と紹介ページ。静的ファイルだけで動く公開ビルド（v34） |
 | [pipeline/](pipeline/) | PLATEAU の 3D Tiles と地理院タイルから `app/d`・`app/t` を作る Node.js の変換パイプライン |
 | [survey/](survey/) | 舞台を決めるために行った、LOD3 テクスチャ密度の調査スクリプトと結果 |
 | [tools/](tools/) | 静止画と動画の撮影、動画の組み立て、ブラウザ 3 エンジンでの検証スクリプト |
@@ -104,6 +104,8 @@ v32（2026-11-13）では、行動図鑑のまだ見ていない項目に、探�
 
 v33（2026-11-13）では、実ブラウザでの確認で見つかった表示の 2 点を直しました。情報パネルの GPU 名は途中で切らずに折り返して全文を出します。視点を切り替えた直後に、選んだ視点の名前が数秒見えなくなることがあったので、文字の色はすぐに切り替えるようにしました。
 
+v34（2026-11-14）では、タイトル画面の注記に読み込み量（約 21 MB）と動作要件（WebGL 2 と DecompressionStream）を足しました。紹介ページを経ずに作品を開いた人にも伝わるようにするためです。紹介ページには、制作と検証に Meta Muse も利用したことを追記しました。
+
 v29（2026-11-13）は、専門レビューの指摘（Issue #3〜#14 の一部）への対応です。始めた直後の視点を望遠から「ハトの目」に変えました。図鑑は、注視している 1 羽だけでなく、画面に見えているハトの行動も 1.5 秒続けば記録します。案内文の表示時間を延ばし、DecompressionStream に対応していないブラウザでは始める前に案内を出します。タイトル画面の出典を統一の形にしました。
 
 v28（2026-11-13）では、地面と、座っている人・立っている人のメッシュを区画に分け、画面の外の区画を描かないようにしました。見た目は変わりません。同じ場面で測ると、1 コマの三角形は望遠で約 560 万から約 440 万、「ハトの目」で約 1,450 万から約 1,140 万に減りました。描画の呼び出しは「ハトの目」で約 700 回から約 920 回に増えています。人の顔は、目を白目・虹彩・瞳孔・まつげのある形に描き直し、鼻を鼻筋・鼻先・小鼻に分けました。
@@ -141,6 +143,6 @@ v26（2026-11-13）は、公開後に届いたプレイの報告をもとに直�
 
 *Hato no Me, Kyoto* ("Pigeon's Eye, Kyoto") is a browser piece in which you walk and fly through Pontocho, the Kamo River and Gion Shirakawa as a feral pigeon. The town is rebuilt from the LOD3 buildings of Project PLATEAU, the open 3D city model published by Japan's Ministry of Land, Infrastructure, Transport and Tourism (Kyoto, FY2025). It runs on three.js r170 with no build step, on phones as well as desktops.
 
-The implementation and its verification were done by an AI (Claude Fable 5.2). The write-up is in [docs/article.md](docs/article.md) (Japanese). To run it, serve `app/` as static files: `python3 -m http.server 8000 --directory app`.
+The implementation and its verification were done by an AI (Claude Fable 5.2). Meta Muse was also used in production and verification. The write-up is in [docs/article.md](docs/article.md) (Japanese). To run it, serve `app/` as static files: `python3 -m http.server 8000 --directory app`.
 
 Code is under the [MIT License](LICENSE). Text, images and video are under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). Files derived from PLATEAU and GSI data follow the terms of their sources, listed in [NOTICE.md](NOTICE.md).

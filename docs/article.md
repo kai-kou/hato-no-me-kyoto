@@ -347,6 +347,6 @@ AI には実機がありません。そこで、手元で動かせるものを�
 | 納涼床の期間 | 鴨川納涼床、2026 年 5 月 1 日から 10 月 15 日 | [京都観光Navi](https://ja.kyoto.travel/event/single.php?event_id=4902) |
 | 描画ライブラリ | three.js r170（MIT License） | [three.js](https://threejs.org/) |
 
-PLATEAU のオープンデータは、出典を表記すれば複製、加工、商用利用ができます（[国土交通省の発表資料](https://www.mlit.go.jp/common/001418346.pdf)）。実装と検証は Claude Fable 5.2 が行いました。
+PLATEAU のオープンデータは、出典を表記すれば複製、加工、商用利用ができます（[国土交通省の発表資料](https://www.mlit.go.jp/common/001418346.pdf)）。実装と検証は Claude Fable 5.2 が行いました。制作と検証には Meta Muse も利用しました。
 
 コード、データ変換パイプライン、撮影と検証のスクリプトは [GitHub の kai-kou/hato-no-me-kyoto](https://github.com/kai-kou/hato-no-me-kyoto) で公開しています。
