@@ -279,7 +279,7 @@ html.lp #lp { display: block; position: fixed; inset: 0; z-index: 60; overflow-x
     <div class="lp-cols">
       <div class="lp-cols split">
         <div class="lp-text">
-          <p>建物は、国土交通省の 3D 都市モデル PLATEAU（京都市・2025 年度）の LOD3 です。壁には測量のときに撮影された写真が貼られていて、作品ではそれをそのまま使っています。</p>
+          <p>建物は、国土交通省の 3D 都市モデル PLATEAU（京都市・2025 年度）です。中心部の LOD3 建築物 138 棟を主役に、周囲を LOD2 建築物 834 棟で囲んでいます。壁には測量のときに撮影された写真が貼られていて、作品ではそれをそのまま使っています。</p>
           <p>舞台は実測で選びました。LOD3 の建物がある市区の壁の細かさを測ると、先斗町と祇園白川は壁 1 m あたり中央値で約 86 画素。比較した東京・虎ノ門周辺の約 17 倍でした。ハトの目線では壁まで 1〜2 m しかないので、この細かさが街の見え方を決めます。</p>
         </div>
         <dl class="lp-nums">
@@ -350,7 +350,7 @@ html.lp #lp { display: block; position: fixed; inset: 0; z-index: 60; overflow-x
   <section class="lp-sec lp-w" id="lp-env">
     <div class="lp-head"><span class="tag">環境</span><h2>動かすには。</h2></div>
     <ul class="lp-list lp-text">
-      <li>WebGL 2 に対応したブラウザで動きます。Chromium、WebKit、Firefox の各エンジンで動作を確認しました。</li>
+      <li>WebGL 2 と DecompressionStream に対応したブラウザで動きます。Chromium、WebKit、Firefox の各エンジンで動作を確認しました。</li>
       <li>画質は端末に合わせて 3 段階から自動で選ばれます。描画が間に合わないときは、内部の解像度を下げて続けます。</li>
       <li>確認は AI が手元のソフトウェア描画で行いました。実機での速度と、耳で聴いた音の印象は確かめられていません。作品の「i」ボタンに、その端末での動作状況が出ます。</li>
       <li>LOD3 の建物があるのは、先斗町通と祇園白川沿いです。季節は、鴨川に納涼床が出ている 10 月中旬に固定しています。</li>
@@ -371,7 +371,7 @@ html.lp #lp { display: block; position: fixed; inset: 0; z-index: 60; overflow-x
         <p>遠景の地表は地理院タイル（シームレス空中写真、ズームレベル 12）を加工して作成。データソース：Landsat8画像（GSI,TSIC,GEO Grid/AIST）, Landsat8画像（courtesy of the U.S. Geological Survey）, 海底地形（GEBCO）</p>
         <p><a href="https://www.mlit.go.jp/plateau/">Project PLATEAU</a>　<a href="https://maps.gsi.go.jp/development/ichiran.html">地理院タイル一覧</a>　<a href="https://github.com/kai-kou/hato-no-me-kyoto/blob/main/NOTICE.md">データごとの出典と利用条件</a></p></div>
       <div><h3>ライセンス</h3>
-        <p>コードは MIT License、文章・画像・動画は CC BY 4.0 です。データを加工した成果物は、元データの利用条件に従います。描画には three.js r170（MIT License）を使っています。</p>
+        <p>コードは MIT License、文章・画像・動画は CC BY 4.0 です。画像・動画を使うときは、作者表示に加えて上記の出典も表記してください。データを加工した成果物は、元データの利用条件に従います。描画には three.js r170（MIT License）を使っています。</p>
         <p>© 2026 kai-kou　<a href="https://github.com/kai-kou/hato-no-me-kyoto">github.com/kai-kou/hato-no-me-kyoto</a></p></div>
       <div lang="en"><h3>English</h3>
         <p>Hato no Me, Kyoto (“Pigeon’s Eye, Kyoto”) is a browser piece in which you walk and fly through Pontocho, the Kamo River and Gion Shirakawa as a feral pigeon. The town is rebuilt from the LOD3 buildings of Project PLATEAU, the open 3D city model published by Japan’s Ministry of Land, Infrastructure, Transport and Tourism (Kyoto, FY2025).</p></div>
@@ -416,7 +416,7 @@ html.lp #lp { display: block; position: fixed; inset: 0; z-index: 60; overflow-x
   <h1>鳩の目、京都。</h1>
   <div class="sub">先斗町・鴨川・祇園白川を<br>ハトの視点と俯瞰で観察する<br><span style="opacity:.75;font-size:.86em">PLATEAU 3D都市モデル × ドバトの行動シミュレーション</span></div>
   <button id="btnStart">はじめる</button>
-  <small>音が出ます<br>出典：国土交通省 Project PLATEAU（京都市 2025年度）／国土地理院</small>
+  <small>音が出ます<br>出典：国土交通省 Project PLATEAU の 3D 都市モデル（京都市、2025 年度）と、国土地理院の地理院タイルを加工して作成</small>
 </div>
 
 <div id="ethoPanel" class="modal"><div class="sheet glass"><button id="ethoClose" class="x">×</button><h2>行動図鑑</h2><p>観察したドバト（カワラバト）の行動が記録されます。</p><ul id="ethoList"></ul></div></div>
@@ -462,6 +462,7 @@ html.lp #lp { display: block; position: fixed; inset: 0; z-index: 60; overflow-x
   if (!H.classList.contains('lp') || !lp) { boot(false); return; }
   vp.setAttribute('content', 'width=device-width, initial-scale=1, viewport-fit=cover');
   if (!window.WebGL2RenderingContext) { var nt = d.getElementById('lpNote'); if (nt) nt.textContent = 'このブラウザは WebGL 2 に対応していないため、作品は動きません。下の動画でご覧ください。'; }
+  else if (!('DecompressionStream' in window)) { var nt2 = d.getElementById('lpNote'); if (nt2) nt2.textContent = 'このブラウザは DecompressionStream に対応していないため、作品は動きません。下の動画でご覧ください。'; }
   lp.addEventListener('click', function (e) { var t = e.target.closest ? e.target.closest('[data-go],[data-to]') : null; if (!t) return; e.preventDefault();
     if (t.hasAttribute('data-go')) boot(true); else { var el = d.getElementById(t.getAttribute('data-to')); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' }); } });
   addEventListener('hashchange', function () { if (location.hash === '#play') boot(false); });

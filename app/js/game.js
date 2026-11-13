@@ -63,7 +63,7 @@ export async function start(app) {
   ring.rotation.x = -Math.PI / 2; ring.renderOrder = 5; ring.visible = false; ring.frustumCulled = false; scene.add(ring);
 
   // ---------------------------------------------------------------- state
-  const S = { mode: qs.get('m') || 'tele', focus: 0, manual: false, t: 0, snap: true, lastDrag: -9, chaseYaw: 0, eyeYaw: 0, eyePitch: 0, eyeRoll: 0, overT: V(), shot: null, shotT: 0, wet: +(qs.get('wet') || 0), started: !!qs.get('auto'), hudT: 0, act: '', seen: {}, fpsT: 0, fpsN: 0, slow: 0, fast: 0, ui: true };
+  const S = { mode: qs.get('m') || 'eye', focus: 0, manual: false, t: 0, snap: true, lastDrag: -9, chaseYaw: 0, eyeYaw: 0, eyePitch: 0, eyeRoll: 0, overT: V(), shot: null, shotT: 0, wet: +(qs.get('wet') || 0), started: !!qs.get('auto'), hudT: 0, act: '', seen: {}, fpsT: 0, fpsN: 0, slow: 0, fast: 0, ui: true };
   const ORB = { chase: { yaw: 0, pitch: 0.2, dist: 0.78, min: 0.3, max: 6 }, tele: { yaw: -1.35, pitch: 0.035, dist: 5.2, min: 1.2, max: 60 }, over: { yaw: 0.5, pitch: 0.9, dist: 10, min: 4, max: 420 } };
   const cam = { pos: V(), look: V(), fov: 50 }, tA = V(), tB = V(), tC = V(), tD = V(), tE = V();
   const input = { mx: 0, my: 0, flap: false, peck: false, keys: {} };
@@ -109,8 +109,8 @@ export async function start(app) {
   // messages take turns: one that has just appeared is not overwritten by the next (a reply to a tap would vanish behind an ethogram note in the same frame)
   function toast(msg) { const el = $('toast'); if (!el || !msg) return; const T = toast.s || (toast.s = { q: [], on: false, at: 0, t: 0 });
     if (T.q[T.q.length - 1] === msg || (T.on && !T.q.length && el.textContent === msg)) return; T.q.push(msg); if (T.q.length > 3) T.q.shift();
-    const show = () => { const m = T.q.shift(); if (m === undefined) { el.classList.remove('on'); T.on = false; return; } T.on = true; T.at = performance.now(); el.textContent = m; el.classList.add('on'); T.t = setTimeout(show, T.q.length ? 1300 : 2600); };
-    if (!T.on) show(); else { clearTimeout(T.t); T.t = setTimeout(show, Math.max(0, 1100 - (performance.now() - T.at))); } }
+    const show = () => { const m = T.q.shift(); if (m === undefined) { el.classList.remove('on'); T.on = false; return; } T.on = true; T.at = performance.now(); el.textContent = m; el.classList.add('on'); T.t = setTimeout(show, T.q.length ? 2400 : 3600); };
+    if (!T.on) show(); else { clearTimeout(T.t); T.t = setTimeout(show, Math.max(0, 2000 - (performance.now() - T.at))); } }
 
   // ---------------------------------------------------------------- manual flight / walking
   flock.manualStep = (b, dt) => {
@@ -231,7 +231,10 @@ export async function start(app) {
     if (S.bellH !== undefined && Math.floor(app.hour) !== S.bellH && Math.floor(app.hour) === 18) snd.bell(); S.bellH = Math.floor(app.hour);
     // HUD
     const a = actOf(B()); if (a !== S.act) { S.act = a; mark(a); ui.card(); } if (S.flushT && S.t - S.flushT < 0.2) mark('flush');
-    S.hudT -= dt; if (S.hudT <= 0) { S.hudT = 0.25; ui.tick(); }
+    S.hudT -= dt; if (S.hudT <= 0) { S.hudT = 0.25; ui.tick();
+      // the ethogram also records what other pigeons in view are doing, once it has gone on for a second and a half: a rare behaviour no longer depends on having picked that bird
+      if (S.started) { const w = S.wit || (S.wit = {}), v = S._wv || (S._wv = new THREE.Vector3()), pano = S.mode === 'eye', now = {}; for (const q of flock.B) { if (q.i === S.focus) continue; const d = Math.hypot(q.x - camera.position.x, q.y - camera.position.y, q.z - camera.position.z); if (d > (pano ? 18 : 60)) continue; if (!pano) { v.set(q.x, q.y, q.z).project(camera); if (v.z > 1 || Math.abs(v.x) > 0.9 || Math.abs(v.y) > 0.9) continue; } now[actOf(q)] = 1; }
+        for (const k in now) { w[k] = (w[k] || 0) + 0.25; if (w[k] >= 1.5) mark(k); } for (const k in w) if (!now[k]) w[k] = 0; } }
     // dynamic resolution
     S.fpsT += app.rawDt; S.fpsN++; if (S.fpsT >= 1) { const ms = S.fpsT / S.fpsN * 1000; S.ms = ms; S.fpsT = 0; S.fpsN = 0; if (ms > 30) { S.slow++; S.fast = 0; } else if (ms < 19) { S.fast++; S.slow = 0; } else { S.slow = 0; S.fast = 0; }
       const lo = S.lite ? 0.42 : 0.55;
@@ -307,7 +310,7 @@ export async function start(app) {
   const fb = $('btnFlap'); if (fb) { const dn = e => { e.preventDefault(); input.flap = true; }, upf = () => { input.flap = false; }; fb.addEventListener('pointerdown', dn); fb.addEventListener('pointerup', upf); fb.addEventListener('pointercancel', upf); fb.addEventListener('pointerleave', upf); }
   const stick = $('stick'), knob = $('knob'); if (stick) { let id = null; const set = e => { const r = stick.getBoundingClientRect(), x = (e.clientX - r.left - r.width / 2) / (r.width / 2), y = (e.clientY - r.top - r.height / 2) / (r.height / 2), m = Math.hypot(x, y), k = m > 1 ? 1 / m : 1; input.mx = x * k; input.my = -y * k; knob.style.transform = `translate(${input.mx * 32}px, ${-input.my * 32}px)`; };
     stick.addEventListener('pointerdown', e => { id = e.pointerId; stick.setPointerCapture(id); set(e); }); stick.addEventListener('pointermove', e => { if (e.pointerId === id) set(e); }); const end = () => { id = null; input.mx = input.my = 0; knob.style.transform = ''; }; stick.addEventListener('pointerup', end); stick.addEventListener('pointercancel', end); }
-  on('btnStart', () => { try { snd.start(window.__hatoAC || undefined); } catch (e) { console.warn('audio: ' + e.message); } S.started = true; document.body.classList.add('started'); setMode('tele'); ui.card(true); setTimeout(() => toast('地面をタップでエサ／ハトをタップで観察する相手を変更'), 4200); });
+  on('btnStart', () => { try { snd.start(window.__hatoAC || undefined); } catch (e) { console.warn('audio: ' + e.message); } S.started = true; document.body.classList.add('started'); setMode(qs.get('m') || 'eye'); ui.card(true); setTimeout(() => toast('地面をタップでエサ／ハトをタップで観察する相手を変更'), 4200); });
   on('btnHide', () => { $('timePanel').classList.remove('on'); S.ui = false; S.hideT = S.t; document.body.classList.add('noui'); toast('撮影モード：画面をタップで戻る'); });
   addEventListener('pointerdown', () => { if (!S.ui && S.t - (S.hideT || 0) > 0.6) { S.ui = true; document.body.classList.remove('noui'); } }, true);
   if (S.started) document.body.classList.add('started');
