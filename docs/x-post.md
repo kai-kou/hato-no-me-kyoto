@@ -4,9 +4,9 @@
 
 ## 投稿の前に
 
-1. 作品を誰でも開ける URL で公開し、ログアウトした状態で開けることを確かめる
+1. 作品の URL（https://claude.ai/artifact/L6dDhAnGZur167TMmp6hdM）を、ログアウトした状態で開けることを確かめる
 2. 手元のスマートフォンで一度起動し、「i」ボタンの最下段で画質と 1 コマの平均時間を確かめる
-3. 文中の `<作品のURL>` と `<記事のURL>` を差し替える
+3. 記事を公開し、文中の `<記事のURL>` を差し替える
 
 動画は [media/video/hato_kyoto_x.mp4](../media/video/hato_kyoto_x.mp4)（1280×720、約 30 秒、音声なし）を本投稿に付けます。静止画を使う場合の候補は `media/stills/` の `gion_kimono.jpg`、`hato_no_me.jpg`、`pontocho.jpg`、`gion_shirakawa_night.jpg` です。
 
@@ -21,7 +21,7 @@
 
 実装はすべて AI（Claude Fable 5.2）。
 
-<作品のURL>
+https://claude.ai/artifact/L6dDhAnGZur167TMmp6hdM
 #PLATEAU #threejs
 ```
 
@@ -72,7 +72,7 @@ https://github.com/kai-kou/hato-no-me-kyoto
 
 街は国交省 PLATEAU の LOD3、ハト90羽の行動は台本なし、音は全部ブラウザ合成。実装は AI（Claude Fable 5.2）です。
 
-<作品のURL>
+https://claude.ai/artifact/L6dDhAnGZur167TMmp6hdM
 #PLATEAU #threejs
 ```
 

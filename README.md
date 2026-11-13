@@ -2,6 +2,8 @@
 
 京都の先斗町・鴨川・祇園白川を、ドバトの目で歩いて飛ぶブラウザ作品です。街は国土交通省の 3D 都市モデル PLATEAU（京都市・2025 年度）の LOD3 建築物から再構成しています。依存ライブラリは three.js r170 だけで、ビルド工程はありません。
 
+作品を開く: <https://claude.ai/artifact/L6dDhAnGZur167TMmp6hdM>
+
 ![祇園・新橋通を歩く着物の人と、道を空けるハト](media/stills/gion_kimono.jpg)
 
 実装と検証は AI（Claude Fable 5.2）が行いました。出した指示、AI が下した技術判断、つまずいた点、確かめられたことと確かめられなかったことは [docs/article.md](docs/article.md) にまとめています。約 30 秒の紹介動画は [media/video/hato_kyoto_x.mp4](media/video/hato_kyoto_x.mp4) です。
@@ -56,7 +58,7 @@ URL のパラメータで起動時の状態を指定できます。
 
 ## 公開する
 
-`app/` はそのまま静的ホスティングに置けます。GitHub Pages 用に、手動で実行するワークフロー（[.github/workflows/pages.yml](.github/workflows/pages.yml)）を入れてあります。
+作品は Claude のアーティファクトとして公開しています（上のリンク）。`app/` はそのまま静的ホスティングにも置けます。GitHub Pages 用に、手動で実行するワークフロー（[.github/workflows/pages.yml](.github/workflows/pages.yml)）を入れてあります。
 
 1. リポジトリの Settings → Pages で、Source を「GitHub Actions」にする
 2. Actions タブで「Deploy app to GitHub Pages」を選び、Run workflow を押す
