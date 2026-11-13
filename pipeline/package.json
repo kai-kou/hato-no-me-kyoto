@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "description": "Turns PLATEAU 3D Tiles and GSI tiles into the runtime assets of \"Hato no Me, Kyoto\".",
+  "license": "MIT",
   "scripts": {
     "extract": "node extract.mjs",
     "terrain": "node terrain.mjs",

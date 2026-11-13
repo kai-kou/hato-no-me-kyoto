@@ -24,7 +24,7 @@
 
 | ディレクトリ | 内容 |
 | --- | --- |
-| [app/](app/) | 作品本体。静的ファイルだけで動く公開ビルド（v21） |
+| [app/](app/) | 作品本体。静的ファイルだけで動く公開ビルド（v22） |
 | [pipeline/](pipeline/) | PLATEAU の 3D Tiles と地理院タイルから `app/d`・`app/t` を作る Node.js の変換パイプライン |
 | [survey/](survey/) | 舞台を決めるために行った、LOD3 テクスチャ密度の調査スクリプトと結果 |
 | [tools/](tools/) | 静止画と動画の撮影、動画の組み立て、ブラウザ 3 エンジンでの検証スクリプト |
@@ -56,16 +56,11 @@ URL のパラメータで起動時の状態を指定できます。
 | `scale` | `scale=0.5` | 内部解像度の倍率 |
 | `rec` | `rec=30` | 録画用の固定時間刻み（1 秒あたりのコマ数）。`tools/rec2.py` が使う |
 
-## 公開する
+## 公開先
 
-作品は Claude のアーティファクトとして公開しています（上のリンク）。`app/` はそのまま静的ホスティングにも置けます。GitHub Pages 用に、手動で実行するワークフロー（[.github/workflows/pages.yml](.github/workflows/pages.yml)）を入れてあります。
+作品は Claude のアーティファクトとして公開しています（冒頭のリンク）。`app/` はビルド不要の静的ファイルなので、そのまま別の静的ホスティングに置くこともできます。全体で約 54 MB、最大のファイルは約 15 MB です。
 
-1. リポジトリの Settings → Pages で、Source を「GitHub Actions」にする
-2. Actions タブで「Deploy app to GitHub Pages」を選び、Run workflow を押す
-
-ワークフローは `app/` だけを公開します。GitHub Pages には月 100 GB のソフトな帯域上限があります。全体を読み込むと 1 回あたり約 54 MB になるので、アクセスが集中する見込みがあるなら、帯域の上限がない静的ホスティングも検討してください。最大のファイルは約 15 MB です。
-
-`app/d` と `app/t` の `.txt` は、バイナリを base64 にしたものです。最初の公開先がバイナリ拡張子を配信できなかったための措置で、サイズは約 33% 増えています。
+`app/d` と `app/t` の `.txt` は、バイナリを base64 にしたものです。アーティファクトのホストがバイナリ拡張子を配信できないための措置で、サイズは約 33% 増えています。
 
 ## データを作り直す
 
@@ -90,7 +85,14 @@ URL のパラメータで起動時の状態を指定できます。
 
 本作品は、国土交通省 Project PLATEAU の 3D 都市モデル（京都市、2025 年度）と、国土地理院の地理院タイル（標高タイル、シームレス空中写真）を加工して作成したものです。国土交通省、国土地理院、京都市が内容を保証するものではありません。データごとの出典と利用条件は [NOTICE.md](NOTICE.md) にあります。
 
-`app/d`、`app/t`、`media/` などデータを加工した成果物には、元データの利用条件が適用されます。three.js は MIT License です。それ以外のコードと文章のライセンスは、まだ設定していません。
+| 対象 | ライセンス |
+| --- | --- |
+| コード（`app/` の HTML と JavaScript、`pipeline/`、`survey/` のスクリプト、`tools/`、`prototype/` の本体） | [MIT License](LICENSE) |
+| 文章、画像、動画（`README.md`、`docs/`、`media/`） | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/deed.ja) |
+| データを加工した成果物（`app/d`、`app/t`、`survey/feats_*.json`） | 元データの利用条件に従う（[NOTICE.md](NOTICE.md)） |
+| three.js（`app/js/three.module.min.js`、`prototype/` の `three.*.js`） | MIT License（Three.js Authors） |
+
+`media/` の画像と動画には、PLATEAU と地理院タイルを加工したデータが写っています。利用するときは、作者（kai-kou）の表示に加えて、NOTICE.md にある出典も表記してください。
 
 ---
 
@@ -100,4 +102,4 @@ URL のパラメータで起動時の状態を指定できます。
 
 The implementation and its verification were done by an AI (Claude Fable 5.2). The write-up is in [docs/article.md](docs/article.md) (Japanese). To run it, serve `app/` as static files: `python3 -m http.server 8000 --directory app`.
 
-Data sources and terms are listed in [NOTICE.md](NOTICE.md).
+Code is under the [MIT License](LICENSE). Text, images and video are under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). Files derived from PLATEAU and GSI data follow the terms of their sources, listed in [NOTICE.md](NOTICE.md).
