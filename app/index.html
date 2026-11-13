@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>鳩の目、京都。</title>
+<link rel="icon" href="data:,">
+<style>
+:root { --ink: #14110f; --paper: #f3ede2; --dim: rgba(243, 237, 226, 0.66); --shu: #e2532f; --glass: rgba(20, 17, 15, 0.56); --line: rgba(243, 237, 226, 0.16);
+  --st: env(safe-area-inset-top, 0px); --sb: env(safe-area-inset-bottom, 0px); --sl: env(safe-area-inset-left, 0px); --sr: env(safe-area-inset-right, 0px);
+  --sans: system-ui, -apple-system, "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", sans-serif; --serif: "Hiragino Mincho ProN", "Yu Mincho", "Noto Serif JP", serif; }
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { margin: 0; height: 100%; background: #0b0a09; color: var(--paper); font-family: var(--sans); overflow: hidden; overscroll-behavior: none; touch-action: none; user-select: none; -webkit-user-select: none; }
+#c { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
+.glass { background: var(--glass); -webkit-backdrop-filter: blur(14px) saturate(1.2); backdrop-filter: blur(14px) saturate(1.2); border: 1px solid var(--line); }
+
+/* loading */
+#loading { position: fixed; inset: 0; z-index: 30; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; background: radial-gradient(120% 90% at 50% 40%, #2a221c 0%, #0b0a09 70%); transition: opacity 0.9s ease, visibility 0.9s; }
+#loading.done { opacity: 0; visibility: hidden; }
+#loading h1, #start h1 { font-family: var(--serif); font-weight: 600; letter-spacing: 0.18em; margin: 0; font-size: clamp(30px, min(8vw, 9vh), 60px); text-indent: 0.18em; }
+#loading p { margin: 0; color: var(--dim); font-size: 13px; letter-spacing: 0.08em; text-align: center; line-height: 1.8; padding: 0 24px; }
+#track { width: min(320px, 70vw); height: 2px; background: rgba(243, 237, 226, 0.14); overflow: hidden; }
+#bar { width: 0; height: 100%; background: var(--shu); transition: width 0.25s ease; }
+#pct { font-variant-numeric: tabular-nums; font-size: 12px; color: var(--dim); letter-spacing: 0.1em; }
+#err { display: none; color: #ffb39c; font-size: 13px; max-width: 80vw; text-align: center; }
+#lost { position: fixed; inset: 0; z-index: 40; display: none; flex-direction: column; align-items: center; justify-content: center; gap: 18px; padding: 24px; text-align: center; background: rgba(11, 10, 9, 0.88); }
+#lost.on { display: flex; }
+#lost p { margin: 0; font-size: 14px; line-height: 1.9; max-width: 30em; }
+#lostBtn { padding: 12px 36px; border-radius: 999px; background: var(--shu); color: #fff; font-weight: 700; letter-spacing: 0.2em; text-indent: 0.2em; }
+
+/* start */
+#start { position: fixed; inset: 0; z-index: 20; display: none; flex-direction: column; align-items: center; justify-content: flex-end; gap: 12px; padding: 0 24px calc(7vh + var(--sb)); text-align: center; background: linear-gradient(180deg, rgba(11, 10, 9, 0.0) 38%, rgba(11, 10, 9, 0.82) 100%); pointer-events: none; }
+body.ready:not(.started) #start { display: flex; }
+#start h1 { text-shadow: 0 2px 24px rgba(0, 0, 0, 0.6); }
+#start .sub { font-size: clamp(12px, 3.2vw, 15px); letter-spacing: 0.12em; color: var(--paper); opacity: 0.9; text-shadow: 0 1px 10px rgba(0, 0, 0, 0.8); line-height: 1.9; }
+#btnStart { pointer-events: auto; margin-top: 8px; padding: 14px 44px; border-radius: 999px; background: var(--shu); color: #fff; font-weight: 700; letter-spacing: 0.3em; text-indent: 0.3em; font-size: 16px; box-shadow: 0 8px 30px rgba(226, 83, 47, 0.45); }
+#btnStart:active { transform: scale(0.97); }
+#start small { color: var(--dim); font-size: 11px; letter-spacing: 0.06em; }
+
+/* HUD */
+#hud { position: fixed; inset: 0; z-index: 10; pointer-events: none; opacity: 0; transition: opacity 0.6s ease; }
+body.started #hud { opacity: 1; } body.noui #hud { opacity: 0; }
+#hud > * { pointer-events: auto; }
+#top { position: absolute; left: calc(12px + var(--sl)); top: calc(10px + var(--st)); display: flex; align-items: center; gap: 10px; pointer-events: none; }
+#brand { font-family: var(--serif); font-size: 15px; letter-spacing: 0.16em; text-shadow: 0 1px 8px rgba(0, 0, 0, 0.7); }
+#btnTime { pointer-events: auto; display: flex; align-items: baseline; gap: 8px; padding: 6px 12px; border-radius: 999px; font-size: 12px; }
+#clock { font-variant-numeric: tabular-nums; font-weight: 700; font-size: 14px; }
+#place { color: var(--dim); max-width: 44vw; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#tr { position: absolute; right: calc(10px + var(--sr)); top: calc(8px + var(--st)); display: flex; gap: 8px; }
+.ic { width: 38px; height: 38px; border-radius: 50%; display: grid; place-items: center; font-size: 13px; font-weight: 700; }
+.ic.off { opacity: 0.45; } .ic.on, .act.on { background: var(--shu); border-color: transparent; }
+#card { position: absolute; left: calc(12px + var(--sl)); top: calc(56px + var(--st)); width: min(300px, 62vw); padding: 10px 13px 11px; border-radius: 14px; pointer-events: none; }
+#card.flash { animation: fl 0.7s ease; } @keyframes fl { 0% { border-color: var(--shu); } 100% { border-color: var(--line); } }
+#bname { font-size: 11px; color: var(--dim); letter-spacing: 0.06em; }
+#bact { font-family: var(--serif); font-size: 19px; margin: 3px 0 4px; letter-spacing: 0.06em; }
+#bnote { font-size: 11.5px; line-height: 1.65; color: rgba(243, 237, 226, 0.86); }
+#stat { margin-top: 6px; font-size: 10.5px; color: var(--dim); letter-spacing: 0.05em; }
+#dbg { position: absolute; left: 12px; bottom: 150px; font: 11px monospace; color: #9f9; text-shadow: 0 0 3px #000; pointer-events: none; }
+
+#modes { position: absolute; left: 50%; bottom: calc(12px + var(--sb)); transform: translateX(-50%); display: flex; padding: 4px; border-radius: 999px; gap: 2px; max-width: calc(100vw - 16px); }
+#modes button { padding: 9px 13px; border-radius: 999px; font-size: 12.5px; letter-spacing: 0.04em; white-space: nowrap; color: var(--dim); transition: background 0.2s, color 0.2s; }
+#modes button.on { background: var(--paper); color: var(--ink); font-weight: 700; }
+#acts { position: absolute; right: calc(10px + var(--sr)); bottom: calc(70px + var(--sb)); display: flex; flex-direction: column; gap: 9px; align-items: flex-end; }
+.act { min-width: 54px; height: 54px; padding: 0 6px; border-radius: 27px; display: grid; place-items: center; font-size: 11.5px; line-height: 1.25; letter-spacing: 0.02em; text-align: center; }
+.act:active, .ic:active, #modes button:active { transform: scale(0.94); }
+#btnFlap, #btnPeck, #stick { display: none; }
+body.manual #btnFlap, body.manual #btnPeck { display: grid; } body.manual #btnClap, body.manual #btnNext { display: none; }
+#btnFlap { min-width: 76px; height: 76px; border-radius: 38px; font-size: 13px; font-weight: 700; background: rgba(226, 83, 47, 0.85); border-color: transparent; }
+#stick { position: absolute; left: calc(18px + var(--sl)); bottom: calc(74px + var(--sb)); width: 118px; height: 118px; border-radius: 50%; touch-action: none; }
+body.manual #stick { display: block; }
+#knob { position: absolute; left: 50%; top: 50%; width: 50px; height: 50px; margin: -25px 0 0 -25px; border-radius: 50%; background: rgba(243, 237, 226, 0.85); pointer-events: none; }
+@media (hover: hover) and (pointer: fine) { body.manual #stick { display: none; } }
+
+.panel { position: absolute; display: none; padding: 14px; border-radius: 16px; font-size: 12px; }
+.panel.on { display: block; }
+#timePanel { left: calc(12px + var(--sl)); top: calc(52px + var(--st)); width: min(330px, calc(100vw - 24px)); z-index: 3; }
+#timePanel input[type=range] { width: 100%; accent-color: var(--shu); margin: 4px 0 10px; }
+.row { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; align-items: center; }
+.row span { color: var(--dim); width: 100%; font-size: 10.5px; letter-spacing: 0.08em; }
+.chip { padding: 6px 11px; border-radius: 999px; border: 1px solid var(--line); font-size: 11.5px; }
+.chip.on { background: var(--paper); color: var(--ink); border-color: transparent; font-weight: 700; }
+.modal { position: fixed; inset: 0; z-index: 25; display: none; align-items: center; justify-content: center; background: rgba(8, 7, 6, 0.55); padding: 16px; pointer-events: auto; }
+.modal.on { display: flex; }
+.sheet { width: min(560px, 100%); max-height: min(82vh, 720px); overflow: auto; border-radius: 18px; padding: 20px 20px 16px; font-size: 12.5px; line-height: 1.8; touch-action: pan-y; -webkit-overflow-scrolling: touch; }
+.sheet h2 { font-family: var(--serif); font-size: 19px; letter-spacing: 0.12em; margin: 0 0 8px; }
+.sheet h3 { font-size: 12px; color: var(--shu); letter-spacing: 0.12em; margin: 14px 0 2px; }
+.sheet p { margin: 0 0 6px; color: rgba(243, 237, 226, 0.88); }
+.sheet .x { float: right; width: 34px; height: 34px; border-radius: 50%; border: 1px solid var(--line); }
+#ethoList { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 6px; }
+#ethoList li { padding: 8px 10px; border-radius: 10px; border: 1px solid var(--line); opacity: 0.5; }
+#ethoList li.ok { opacity: 1; border-color: rgba(226, 83, 47, 0.5); }
+#ethoList b { display: block; font-family: var(--serif); font-size: 14px; letter-spacing: 0.05em; } #ethoList span { font-size: 11.5px; color: var(--dim); }
+#toast { position: fixed; left: 50%; bottom: calc(72px + var(--sb)); transform: translate(-50%, 8px); z-index: 12; padding: 8px 15px; border-radius: 999px; font-size: 12px; letter-spacing: 0.04em; opacity: 0; transition: opacity 0.3s, transform 0.3s; pointer-events: none; white-space: nowrap; max-width: 92vw; overflow: hidden; text-overflow: ellipsis; }
+#toast.on { opacity: 1; transform: translate(-50%, 0); }
+
+/* pigeon-eye overlay: -165deg .. +165deg across the screen */
+#pano { position: fixed; inset: 0; z-index: 9; pointer-events: none; display: none; }
+body.started[data-mode=eye] #pano { display: block; } #pano .p2, body[data-pano="2"] #pano .p1 { display: none; } body[data-pano="2"] #pano .p2 { display: block; }
+#pano i { position: absolute; top: 0; bottom: 0; width: 1px; background: linear-gradient(180deg, transparent 0%, rgba(243, 237, 226, 0.28) 30%, rgba(243, 237, 226, 0.28) 70%, transparent 100%); }
+#pano b { position: absolute; top: calc(50% + 22vh); transform: translateX(-50%); font-size: 10.5px; font-weight: 500; letter-spacing: 0.12em; color: rgba(243, 237, 226, 0.82); text-shadow: 0 1px 6px rgba(0, 0, 0, 0.9); white-space: nowrap; }
+@media (max-height: 460px) { #card { width: min(260px, 40vw); } #bnote { display: none; } #acts { flex-direction: row; bottom: calc(64px + var(--sb)); } .act { min-width: 48px; height: 48px; } #stick { bottom: calc(60px + var(--sb)); width: 104px; height: 104px; } #start { padding-bottom: calc(6vh + var(--sb)); gap: 8px; } }
+@media (max-width: 420px) { #brand { display: none; } #modes button { padding: 9px 10px; font-size: 12px; } }
+</style>
+</head>
+<body data-mode="cine">
+<canvas id="c"></canvas>
+
+<div id="pano">
+  <div class="p1"><i style="left:45.78%"></i><i style="left:54.22%"></i>
+  <b style="left:50%">両眼視 約27°</b><b style="left:21.9%">← 左目の視野</b><b style="left:78.1%">右目の視野 →</b><b style="left:3.5%">死角</b><b style="left:96.5%">死角</b></div>
+  <div class="p2"><i style="left:83.7%;bottom:50%"></i><i style="left:16.3%;top:50%"></i>
+  <b style="left:40%;top:calc(50% - 26px)">左目の視野（真後ろ〜正面）</b><b style="left:60%;top:calc(50% + 10px)">右目の視野（正面〜真後ろ）</b><b style="left:92%;top:calc(25% + 60px)">両眼視</b><b style="left:8%;top:calc(75% + 60px)">両眼視</b></div>
+</div>
+
+<div id="hud">
+  <div id="top"><span id="brand">鳩の目、京都。</span><button id="btnTime" class="glass"><span id="clock">09:36</span><span id="place">鴨川</span></button></div>
+  <div id="tr"><button id="btnEtho" class="ic glass" style="width:auto;padding:0 12px;border-radius:19px">図鑑 <span id="ethoN" style="margin-left:5px;color:var(--shu)">0/16</span></button><button id="btnSound" class="ic glass" aria-label="音">音</button><button id="btnInfo" class="ic glass" aria-label="情報">i</button></div>
+  <div id="card" class="glass"><div id="bname"></div><div id="bact"></div><div id="bnote"></div><div id="stat"></div></div>
+  <div id="timePanel" class="panel glass">
+    <div class="row"><span>時刻（京都・11月12日）</span></div>
+    <input id="timeRange" type="range" min="0" max="23.98" step="0.02" value="9.6">
+    <div class="row"><button class="chip" data-h="6.6">夜明け</button><button class="chip" data-h="9.6">朝</button><button class="chip" data-h="12.5">昼</button><button class="chip" data-h="16.3">夕</button><button class="chip" data-h="17.3">薄暮</button><button class="chip" data-h="20">夜</button></div>
+    <div class="row"><span>時間の流れ</span><button class="chip on" data-ts="0">止める</button><button class="chip" data-ts="60">×60</button><button class="chip" data-ts="600">×600</button><button class="chip" data-ts="3000">×3000</button></div>
+    <div class="row"><span>天気・画質</span><button class="chip" id="btnWet">雨上がり</button><button class="chip" id="btnHide">撮影モード</button><span id="qsel" style="width:auto;display:flex;gap:6px;margin-left:auto"><button class="chip" data-q="low">軽</button><button class="chip" data-q="mid">中</button><button class="chip" data-q="high">高</button></span></div>
+  </div>
+  <div id="stick" class="glass"><div id="knob"></div></div>
+  <div id="acts">
+    <button id="btnFlap" class="act glass">はばたく</button>
+    <button id="btnPeck" class="act glass">ついばむ</button>
+    <button id="btnFly" class="act glass">ハトに<br>なる</button>
+    <button id="btnFeed" class="act glass">エサ</button>
+    <button id="btnClap" class="act glass">手を<br>たたく</button>
+    <button id="btnNext" class="act glass">次の<br>ハト</button>
+  </div>
+  <div id="modes" class="glass"><button data-m="eye">ハトの目</button><button data-m="chase">追う</button><button data-m="tele">望遠</button><button data-m="over">俯瞰</button><button data-m="cine">シネマ</button></div>
+  <div id="dbg"></div>
+</div>
+<div id="toast" class="glass"></div>
+
+<div id="start">
+  <h1>鳩の目、京都。</h1>
+  <div class="sub">先斗町・鴨川・祇園白川を<br>ハトの視点と俯瞰で観察する<br><span style="opacity:.75;font-size:.86em">PLATEAU 3D都市モデル × ドバトの行動シミュレーション</span></div>
+  <button id="btnStart">はじめる</button>
+  <small>音が出ます<br>出典：国土交通省 Project PLATEAU（京都市 2025年度）／国土地理院</small>
+</div>
+
+<div id="ethoPanel" class="modal"><div class="sheet glass"><button id="ethoClose" class="x">×</button><h2>行動図鑑</h2><p>観察したドバト（カワラバト）の行動が記録されます。</p><ul id="ethoList"></ul></div></div>
+<div id="info" class="modal"><div class="sheet glass"><button id="infoClose" class="x">×</button>
+  <h2>鳩の目、京都。</h2>
+  <p>京都・先斗町〜鴨川〜祇園白川の実在の街並みを、ドバトの群れと一緒に観察するシミュレーションです。</p>
+  <h3>視点</h3>
+  <p><b>ハトの目</b>：顔の横についた左右の目で見える約320°を1枚に展開。中央の狭い帯（最大約27°）だけが両眼視で、真後ろの約40°が死角です。歩くと景色が「止まる→進む」を繰り返すのは、頭を空間に固定するヘッドボブの再現です。<br><b>追う／望遠／俯瞰</b>：ドラッグで回り込み、ピンチ（ホイール）で距離。<b>シネマ</b>は自動カメラです。</p>
+  <h3>できること</h3>
+  <p>地面をタップでエサをまく／ハトをタップで観察対象を変更／「手をたたく」で一斉飛翔／「ハトになる」で操縦（PC：WASD・Space・E）。左上の時刻から時間帯・天気・画質を変更できます。キーボード：1〜5 視点、N 次のハト、F エサ、C 手をたたく、H 表示切替。</p>
+  <h3>データと作り方</h3>
+  <p>建物・道路・都市設備：国土交通省 Project PLATEAU 3D都市モデル（京都市 2025年度、建築物 LOD3／LOD2・道路 LOD3・都市設備 LOD3・植生 LOD3）。壁面は同データの実写テクスチャです。<br>地形・水面範囲：国土地理院 地理院タイル（標高タイル DEM1A・DEM5A・DEM10B）。地表の写真：地理院タイル（シームレス空中写真）を加工して使用。砂利・石・草の細部はコードによる生成です。<br>ハト、樹木、鴨川の橋、水面、空、音、そして人と車はすべてコードによる手続き生成です（樹木の位置は PLATEAU の植生データと空中写真、橋の位置は空中写真から）。人は一人ずつ体格・服装・髪型の違う立体をコードで作り、13本の骨で動かしています（顔や指は簡略です）。鴨川名物の「等間隔に座る人たち」、歩く人、走る人、立ち止まる人に加えて、祇園と先斗町には着物姿の人もいます。川端通と四条通の路面は空中写真では車や木がにじむため、アスファルトと車線をコードで描いています。歩行者が近づくとハトは道を空け、走ってくると飛び立ちます。季節は、鴨川の納涼床（例年5月1日〜10月15日）が出ている最後の週にあたる10月中旬に設定しています。桜の葉が色づき始める頃で、太陽の高さと日の出・日の入りもこの時期に合わせています。上空を舞うトビ、行動の頻度、羽色の比率は演出を含みます。ハトの行動は実際のドバトの生態（採餌の時間帯、ねぐら、求愛、水の飲み方など）をもとにモデル化していますが、個体数や行動頻度は観察しやすいよう調整しています。</p>
+  <p style="color:var(--dim);font-size:11px">本作品は上記データを加工して作成したもので、国土交通省・国土地理院・京都市が内容を保証するものではありません。</p>
+  <p id="diag" style="color:var(--dim);font-size:11px"></p>
+</div></div>
+
+<div id="lost"><p id="lostMsg"></p><button id="lostBtn">再開する</button></div>
+<div id="loading"><h1>鳩の目、京都。</h1><p>PLATEAU 3D都市モデルを読み込んでいます（約21MB）<br>先斗町・鴨川・祇園白川</p><div id="track"><div id="bar"></div></div><div id="pct">0%</div><div id="err"></div></div>
+<script>
+// show a readable message if the scripts or data cannot be loaded
+(function () { var err = document.getElementById('err'), show = function (m, weak) { if (document.body.classList.contains('ready') || (weak && err.textContent)) return; err.textContent = m; err.style.display = 'block'; };
+  window.addEventListener('error', function (e) { show('エラー: ' + (e.message || (e.target && (e.target.src || e.target.href)) || '読み込みに失敗しました')); }, true);
+  window.addEventListener('unhandledrejection', function (e) { show('エラー: ' + (e.reason && e.reason.message || e.reason)); });
+  setTimeout(function () { if (!window.__app) show('スクリプトを読み込めませんでした。ページを再読み込みしてください。', true); }, 12000);
+  if (!window.WebGL2RenderingContext) show('このブラウザは WebGL2 に対応していません。'); })();
+</script>
+<script type="module" src="./js/main.js"></script>
+</body>
+</html>
