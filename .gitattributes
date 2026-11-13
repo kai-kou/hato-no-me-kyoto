@@ -1,0 +1,12 @@
+# Base64 paks: single-line files, never to be line-ending converted or diffed as text
+app/d/*.txt -text -diff linguist-generated
+app/t/*.txt -text -diff linguist-generated
+
+# Third-party and generated files, kept out of the language statistics
+app/js/three.module.min.js linguist-vendored
+prototype/osaka-nipponbashi/three.*.js linguist-vendored
+survey/feats_*.json linguist-generated
+
+*.mp4 binary
+*.jpg binary
+*.webp binary
