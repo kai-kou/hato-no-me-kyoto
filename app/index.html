@@ -31,6 +31,7 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 #track { width: min(320px, 70vw); height: 2px; background: rgba(243, 237, 226, 0.14); overflow: hidden; }
 #bar { width: 0; height: 100%; background: var(--shu); transition: width 0.25s ease; }
 #pct { font-variant-numeric: tabular-nums; font-size: 12px; color: var(--dim); letter-spacing: 0.1em; }
+#stage { min-height: 1.6em; font-variant-numeric: tabular-nums; font-size: 12px; color: var(--dim); letter-spacing: 0.06em; text-align: center; padding: 0 20px; }
 #err { display: none; color: #ffb39c; font-size: 13px; max-width: 80vw; text-align: center; }
 #lost { position: fixed; inset: 0; z-index: 40; display: none; flex-direction: column; align-items: center; justify-content: center; gap: 18px; padding: 24px; text-align: center; background: rgba(11, 10, 9, 0.88); }
 #lost.on { display: flex; }
@@ -57,7 +58,9 @@ body.started #hud { opacity: 1; } body.noui #hud { opacity: 0; }
 #place { color: var(--dim); max-width: 44vw; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 #tr { position: absolute; right: calc(10px + var(--sr)); top: calc(8px + var(--st)); display: flex; gap: 8px; }
 .ic { width: 38px; height: 38px; border-radius: 50%; display: grid; place-items: center; font-size: 13px; font-weight: 700; }
-.ic.off { opacity: 0.45; } .ic.on, .act.on { background: var(--shu); border-color: transparent; }
+.ic.off { opacity: 0.45; } .ic.off #sndState { color: inherit; } .ic.on, .act.on { background: var(--shu); border-color: transparent; } .act.dis { opacity: 0.38; }
+.tapfx { position: fixed; z-index: 6; width: 46px; height: 46px; margin: -23px 0 0 -23px; border-radius: 50%; border: 2px solid rgba(243, 237, 226, 0.92); box-shadow: 0 0 10px rgba(0, 0, 0, 0.35); pointer-events: none; animation: tapfx 0.52s ease-out forwards; }
+@keyframes tapfx { from { transform: scale(0.25); opacity: 0.95; } to { transform: scale(1.25); opacity: 0; } }
 #card { position: absolute; left: calc(12px + var(--sl)); top: calc(56px + var(--st)); width: min(300px, 62vw); padding: 10px 13px 11px; border-radius: 14px; pointer-events: none; }
 #card.flash { animation: fl 0.7s ease; } @keyframes fl { 0% { border-color: var(--shu); } 100% { border-color: var(--line); } }
 #bname { font-size: 11px; color: var(--dim); letter-spacing: 0.06em; }
@@ -288,7 +291,7 @@ html.lp #lp { display: block; position: fixed; inset: 0; z-index: 60; overflow-x
       </div>
       <div class="lp-two">
         <figure class="lp-fig"><img src="lp/pontocho.jpg" width="1280" height="720" alt="先斗町通の路地。両側に町家の壁が続く" loading="lazy" decoding="async"><figcaption>先斗町通。壁は PLATEAU の写真、石畳はコードで描いています。</figcaption></figure>
-        <figure class="lp-fig"><img src="lp/night.jpg" width="1280" height="720" alt="夜の祇園白川。街灯が石畳を照らしている" loading="lazy" decoding="async"><figcaption>夜の祇園白川。街灯の位置は都市設備のデータどおりです。</figcaption></figure>
+        <figure class="lp-fig"><img src="lp/night.jpg" width="1280" height="720" alt="夜の祇園白川。街灯が石畳を照らし、右手の軒先でハトが眠っている" loading="lazy" decoding="async"><figcaption>夜の祇園白川。街灯の位置は都市設備のデータどおりです。右手の軒先では、ハトが眠っています。</figcaption></figure>
       </div>
     </div>
   </section>
@@ -298,7 +301,7 @@ html.lp #lp { display: block; position: fixed; inset: 0; z-index: 60; overflow-x
     <div class="lp-cols split rev">
       <div class="lp-cols">
         <div class="lp-text">
-          <p>ハトは 1 羽ずつが空腹と渇きを持ち、時刻と周りの動きから次の行動を決めます。朝と夕方は食べることに集中し、正午には 3〜4 割が高い場所で休み、日が沈めば橋脚や屋根の縁のねぐらへ帰ります。</p>
+          <p>ハトは 1 羽ずつが空腹と渇きを持ち、時刻と周りの動きから次の行動を決めます。朝と夕方は食べることに集中し、正午には約 4 割が高い場所で休み、日が沈めば街灯の届く軒先や橋の桁のねぐらへ帰ります。</p>
           <p>人が近づけば歩いて道を空け、トビが真上を通れば一斉に飛び立ちます。飛び立ちは近いハトから順に広がるので、波が群れを渡るように見えます。</p>
         </div>
         <ul class="lp-can">
@@ -365,7 +368,7 @@ html.lp #lp { display: block; position: fixed; inset: 0; z-index: 60; overflow-x
     <div class="g">
       <div><h3>出典</h3>
         <p>本作品は、国土交通省 Project PLATEAU の 3D 都市モデル（京都市、2025 年度）と、国土地理院の地理院タイル（標高タイル、シームレス空中写真）を加工して作成したものです。国土交通省、国土地理院、京都市が内容を保証するものではありません。</p>
-        <p>遠景の地表は地理院タイルのズームレベル 12 で、データソースは Landsat8 画像（GSI, TSIC, GEO Grid/AIST）、Landsat8 画像（courtesy of the U.S. Geological Survey）、海底地形（GEBCO）です。</p>
+        <p>遠景の地表は地理院タイル（シームレス空中写真、ズームレベル 12）を加工して作成。データソース：Landsat8画像（GSI,TSIC,GEO Grid/AIST）, Landsat8画像（courtesy of the U.S. Geological Survey）, 海底地形（GEBCO）</p>
         <p><a href="https://www.mlit.go.jp/plateau/">Project PLATEAU</a>　<a href="https://maps.gsi.go.jp/development/ichiran.html">地理院タイル一覧</a>　<a href="https://github.com/kai-kou/hato-no-me-kyoto/blob/main/NOTICE.md">データごとの出典と利用条件</a></p></div>
       <div><h3>ライセンス</h3>
         <p>コードは MIT License、文章・画像・動画は CC BY 4.0 です。データを加工した成果物は、元データの利用条件に従います。描画には three.js r170（MIT License）を使っています。</p>
@@ -386,7 +389,7 @@ html.lp #lp { display: block; position: fixed; inset: 0; z-index: 60; overflow-x
 
 <div id="hud">
   <div id="top"><span id="brand">鳩の目、京都。</span><button id="btnTime" class="glass"><span id="clock">09:36</span><span id="place">鴨川</span></button></div>
-  <div id="tr"><button id="btnEtho" class="ic glass" style="width:auto;padding:0 12px;border-radius:19px">図鑑 <span id="ethoN" style="margin-left:5px;color:var(--shu)">0/16</span></button><button id="btnSound" class="ic glass" aria-label="音">音</button><button id="btnInfo" class="ic glass" aria-label="情報">i</button></div>
+  <div id="tr"><button id="btnEtho" class="ic glass" style="width:auto;padding:0 12px;border-radius:19px">図鑑 <span id="ethoN" style="margin-left:5px;color:var(--shu)">0/16</span></button><button id="btnSound" class="ic glass" style="width:auto;padding:0 12px;border-radius:19px" aria-label="音の入／切" aria-pressed="true">音 <span id="sndState" style="margin-left:5px;color:var(--shu)">入</span></button><button id="btnInfo" class="ic glass" aria-label="情報">i</button></div>
   <div id="card" class="glass"><div id="bname"></div><div id="bact"></div><div id="bnote"></div><div id="stat"></div></div>
   <div id="timePanel" class="panel glass">
     <div class="row"><span>時刻（京都・10月中旬）</span></div>
@@ -425,7 +428,7 @@ html.lp #lp { display: block; position: fixed; inset: 0; z-index: 60; overflow-x
   <h3>できること</h3>
   <p>地面をタップでエサをまく／ハトをタップで観察対象を変更／「手をたたく」で一斉飛翔／「ハトになる」で操縦（PC：WASD・Space・E）。左上の時刻から時間帯・天気・画質を変更できます。キーボード：1〜5 視点、N 次のハト、F エサ、C 手をたたく、H 表示切替。</p>
   <h3>データと作り方</h3>
-  <p>建物・道路・都市設備：国土交通省 Project PLATEAU 3D都市モデル（京都市 2025年度、建築物 LOD3／LOD2・道路 LOD3・都市設備 LOD3・植生 LOD3）。壁面は同データの実写テクスチャです。<br>地形・水面範囲：国土地理院 地理院タイル（標高タイル DEM1A・DEM5A・DEM10B）。地表の写真：地理院タイル（シームレス空中写真）を加工して使用。遠景の地表は同タイルのズームレベル12で、データソースは Landsat8画像（GSI,TSIC,GEO Grid/AIST）、Landsat8画像（courtesy of the U.S. Geological Survey）、海底地形（GEBCO）です。砂利・石・草の細部はコードによる生成です。<br>ハト、樹木、鴨川の橋、水面、空、音、そして人と車はすべてコードによる手続き生成です（樹木の位置は PLATEAU の植生データと空中写真、橋の位置は空中写真から）。人は一人ずつ体格・服装・髪型の違う立体をコードで作り、13本の骨で動かしています（顔や指は簡略です）。鴨川名物の「等間隔に座る人たち」、歩く人、走る人、立ち止まる人に加えて、祇園と先斗町には着物姿の人もいます。川端通と四条通の路面は空中写真では車や木がにじむため、アスファルトと車線をコードで描いています。歩行者が近づくとハトは道を空け、走ってくると飛び立ちます。季節は、鴨川の納涼床（例年5月1日〜10月15日）が出ている最後の週にあたる10月中旬に設定しています。桜の葉が色づき始める頃で、太陽の高さと日の出・日の入りもこの時期に合わせています。上空を舞うトビ、行動の頻度、羽色の比率は演出を含みます。ハトの行動は実際のドバトの生態（採餌の時間帯、ねぐら、求愛、水の飲み方など）をもとにモデル化していますが、個体数や行動頻度は観察しやすいよう調整しています。</p>
+  <p>建物・道路・都市設備：国土交通省 Project PLATEAU 3D都市モデル（京都市 2025年度、建築物 LOD3／LOD2・道路 LOD3・都市設備 LOD3・植生 LOD3）。壁面は同データの実写テクスチャです。<br>地形・水面範囲：国土地理院 地理院タイル（標高タイル DEM1A・DEM5A・DEM10B）。地表の写真：地理院タイル（シームレス空中写真）を加工して使用。周囲の建物の屋根の色にも同じ写真を使っています。遠景の地表は同タイルのズームレベル12（データソース：Landsat8画像（GSI,TSIC,GEO Grid/AIST）, Landsat8画像（courtesy of the U.S. Geological Survey）, 海底地形（GEBCO））。砂利・石・草の細部はコードによる生成です。<br>ハト、樹木、鴨川の橋、水面、空、音、そして人と車はすべてコードによる手続き生成です（樹木の位置は PLATEAU の植生データと空中写真、橋の位置は空中写真から）。人は一人ずつ体格・服装・髪型の違う立体をコードで作り、13本の骨で動かしています（顔や指は簡略です）。鴨川名物の「等間隔に座る人たち」、歩く人、走る人、立ち止まる人に加えて、祇園と先斗町には着物姿の人もいます。川端通と四条通の路面は空中写真では車や木がにじむため、アスファルトと車線をコードで描いています。歩行者が近づくとハトは道を空け、走ってくると飛び立ちます。季節は、鴨川の納涼床（例年5月1日〜10月15日）が出ている最後の週にあたる10月中旬に設定しています。桜の葉が色づき始める頃で、太陽の高さと日の出・日の入りもこの時期に合わせています。上空を舞うトビ、行動の頻度、羽色の比率は演出を含みます。ハトの行動は実際のドバトの生態（採餌の時間帯、ねぐら、求愛、水の飲み方など）をもとにモデル化していますが、個体数や行動頻度は観察しやすいよう調整しています。</p>
   <p style="color:var(--dim);font-size:11px">本作品は上記データを加工して作成したもので、国土交通省・国土地理院・京都市が内容を保証するものではありません。</p>
   <p style="color:var(--dim);font-size:11px">コードとデータ変換の手順：<a href="https://github.com/kai-kou/hato-no-me-kyoto" target="_blank" rel="noopener" style="color:inherit">github.com/kai-kou/hato-no-me-kyoto</a></p>
   <p style="color:var(--dim);font-size:11px"><a href="./" id="toLp" style="color:inherit">紹介ページへ戻る</a></p>
@@ -433,7 +436,7 @@ html.lp #lp { display: block; position: fixed; inset: 0; z-index: 60; overflow-x
 </div></div>
 
 <div id="lost"><p id="lostMsg"></p><button id="lostBtn">再開する</button></div>
-<div id="loading"><h1>鳩の目、京都。</h1><p>PLATEAU 3D都市モデルを読み込んでいます（約21MB）<br>先斗町・鴨川・祇園白川</p><div id="track"><div id="bar"></div></div><div id="pct">0%</div><div id="err"></div></div>
+<div id="loading"><h1>鳩の目、京都。</h1><p>PLATEAU 3D都市モデルを読み込んでいます（約21MB）<br>先斗町・鴨川・祇園白川</p><div id="track"><div id="bar"></div></div><div id="pct">0%</div><div id="stage"></div><div id="err"></div></div>
 <script>
 // show a readable message if the scripts or data cannot be loaded
 (function () { var err = document.getElementById('err'), show = function (m, weak) { if (document.body.classList.contains('ready') || (weak && err.textContent)) return; err.textContent = m; err.style.display = 'block'; };
@@ -444,7 +447,7 @@ html.lp #lp { display: block; position: fixed; inset: 0; z-index: 60; overflow-x
   if (!window.WebGL2RenderingContext) show('このブラウザは WebGL2 に対応していません。'); })();
 </script>
 <script>
-// landing page -> simulation. The module is added only when the simulation is wanted, so reading the landing page costs no 3D data.
+// landing page -> simulation. The module is added only when the simulation is wanted.
 (function () { var d = document, H = d.documentElement, lp = d.getElementById('lp'), vp = d.querySelector('meta[name=viewport]'), GAME_VP = vp.getAttribute('content');
   function boot(go) { if (window.__hatoBooted) return; window.__hatoBooted = true;
     if (go) { window.__hatoGo = true; // pressed on the landing page: unlock sound inside this press, and skip the simulation's own title
@@ -462,6 +465,16 @@ html.lp #lp { display: block; position: fixed; inset: 0; z-index: 60; overflow-x
   lp.addEventListener('click', function (e) { var t = e.target.closest ? e.target.closest('[data-go],[data-to]') : null; if (!t) return; e.preventDefault();
     if (t.hasAttribute('data-go')) boot(true); else { var el = d.getElementById(t.getAttribute('data-to')); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' }); } });
   addEventListener('hashchange', function () { if (location.hash === '#play') boot(false); });
+  // While the page is read, the 3D data is fetched in the background, so that the simulation starts sooner once it is asked for: all of it on a desktop
+  // or on Wi-Fi, the first 4 MB on other phones, nothing when the visitor asked to save data. js/util.js takes over whatever has arrived or is on its way.
+  var con = navigator.connection || {}, pre = window.__hatoPre = {};
+  function preload(path) { try { var url = new URL(path, d.baseURI).href; if (pre[url] || !window.fetch || !window.ReadableStream) return; var o = pre[url] = { n: 0, total: 0, cb: null, chunks: [] };
+      o.p = fetch(url).then(function (res) { if (!res.ok || !res.body) throw new Error('preload ' + res.status); o.total = +res.headers.get('content-length') || 0; var rd = res.body.getReader();
+        return (function pump() { return rd.read().then(function (r) { if (r.done) return o.chunks; o.chunks.push(r.value); o.n += r.value.length; if (o.cb) o.cb(o.n); return pump(); }); })(); });
+      o.p.catch(function () { delete pre[url]; }); } catch (e) { } }
+  if (!con.saveData && window.WebGL2RenderingContext) { var phone = (window.matchMedia && matchMedia('(pointer: coarse)').matches) || /Mobi|Android|iPhone|iPad/.test(navigator.userAgent), all = !phone || con.type === 'wifi' || con.type === 'ethernet';
+    var early = function () { if (window.__hatoBooted) return; preload('d/nav.txt'); preload('t/b.txt'); if (all) preload('d/core.txt'); };
+    if (d.readyState === 'complete') setTimeout(early, 2500); else addEventListener('load', function () { setTimeout(early, 2500); }); }
   // the opening screen plays footage of the simulation: silent, only while it is in view, and not at all when the visitor asked for less motion or less data
   var v = lp.querySelector('.lp-screen video'), calm = (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) || (navigator.connection && navigator.connection.saveData);
   if (v && !calm) { var play = function () { var p = v.play(); if (p && p.catch) p.catch(function () { }); }; v.muted = true; v.src = Math.min(innerWidth, innerHeight) < 600 ? v.getAttribute('data-src-s') : v.getAttribute('data-src'); play();

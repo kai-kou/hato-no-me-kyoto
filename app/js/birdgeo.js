@@ -78,18 +78,18 @@ export function buildPigeonGeometry() {
     for (let i = 0; i < 10; i++) { const t = i / 9, root = W.clone().lerp(Tp, 0.08 + 0.92 * t), a = (-78 + 70 * Math.pow(t, 0.85)) * Math.PI / 180; // angle from hand axis toward trailing side
       const hd = RIG.handDir, dir = V(hd.x * Math.cos(a) - hd.z * Math.sin(a) * -1, 0, hd.z * Math.cos(a) + hd.x * Math.sin(a) * 1).normalize(); // rotate hand axis about +Y by a (negative = toward -Z)
       const L = [0.118, 0.124, 0.131, 0.138, 0.146, 0.153, 0.160, 0.165, 0.166, 0.156][i];
-      const D = V(0.03 - 0.002 * i, -0.15 - 0.012 * i, -0.985); feather(root, dir, L, 0.019 - 0.004 * t, BONE.handL, 7, 0.3 * i / 9, -0.0016 - 0.0009 * i, foldAng(dir, D, RIG.foldHand), 0.012); }
+      const D = V(0.03 - 0.002 * i, -0.15 - 0.012 * i, -0.985); feather(root, dir, L, 0.034 - 0.009 * t, BONE.handL, 7, 0.3 * i / 9, -0.0016 - 0.0009 * i, foldAng(dir, D, RIG.foldHand), 0.012, 0.80); }   // 3.4 cm vanes at the wrist, 2.5 cm at the tip: each covers most of the next, as on the bird, so the edge of the wing is one line and not a saw
     // secondaries on the forearm
     for (let i = 0; i < 10; i++) { const t = i / 9, root = W.clone().lerp(E, 0.04 + 0.96 * t), dir = V(-0.10 + 0.07 * t, 0, -1).normalize(), L = 0.108 - 0.012 * t;
-      const D = V(0.02, -0.40 - 0.06 * t, -0.90); feather(root, dir, L, 0.021, BONE.foreL, 7, 0.4 + 0.3 * i / 9, -0.0006 * i - 0.0105, foldAng(dir, D, RIG.foldFore), 0.006, 0.82); }
+      const D = V(0.02, -0.40 - 0.06 * t, -0.90); feather(root, dir, L, 0.038, BONE.foreL, 7, 0.4 + 0.3 * i / 9, -0.0006 * i - 0.0105, foldAng(dir, D, RIG.foldFore), 0.013, 0.86); }
     // tertials / humerals on the arm
-    for (let i = 0; i < 4; i++) { const t = i / 3, root = E.clone().lerp(Sh, 0.1 + 0.8 * t), dir = V(-0.05 - 0.12 * t, 0, -1).normalize(), L = 0.092 - 0.012 * t;
-      const D = V(-0.20, 0.10, -0.97); feather(root, dir, L, 0.024, BONE.armL, 7, 0.85, -0.0165 - 0.0006 * i, foldAng(dir, D, RIG.foldArm), 0.004, 0.8); }
+    for (let i = 0; i < 6; i++) { const t = i / 5, root = E.clone().lerp(Sh, 0.06 + 0.88 * t), dir = V(-0.05 - 0.30 * t * t, 0, -1).normalize(), L = 0.098 - 0.020 * t;
+      const D = V(-0.20, 0.10, -0.97); feather(root, dir, L, 0.042, BONE.armL, 7, 0.85, -0.0165 - 0.0006 * i, foldAng(dir, D, RIG.foldArm), 0.009, 0.84); }
     // covert sheet over the bones (upper + lower surface)
     { const NS = 13, NCh = 4, rowsT = [], rowsB = [], total = RIG.armLen + RIG.foreLen + RIG.handLen, j1 = RIG.armLen / total, j2 = (RIG.armLen + RIG.foreLen) / total;
       const at = s => { if (s < j1) return [Sh.clone().lerp(E, s / j1), 0]; if (s < j2) return [E.clone().lerp(W, (s - j1) / (j2 - j1)), 1]; return [W.clone().lerp(Tp, (s - j2) / (1 - j2)), 2]; };
       const ss = t => t * t * (3 - 2 * t);
-      for (let i = 0; i <= NS; i++) { const s = i / NS, [c, seg] = at(s); const chord = s < j2 ? 0.066 - 0.012 * s / j2 : 0.054 * (1 - (s - j2) / (1 - j2)) ** 0.8 + 0.010; let skin;
+      for (let i = 0; i <= NS; i++) { const s = i / NS, [c, seg] = at(s); const chord = s < j2 ? 0.080 - 0.016 * s / j2 : 0.064 * (1 - (s - j2) / (1 - j2)) ** 0.8 + 0.012; let skin;
         if (seg === 0) skin = sk(bones[0], bones[1], ss(Math.min(1, Math.max(0, (s - (j1 - 0.07)) / 0.14)))); else if (seg === 1) skin = s < j1 + 0.07 ? sk(bones[0], bones[1], ss(Math.min(1, Math.max(0, (s - (j1 - 0.07)) / 0.14)))) : sk(bones[1], bones[2], ss(Math.min(1, Math.max(0, (s - (j2 - 0.07)) / 0.14)))); else skin = sk(bones[1], bones[2], ss(Math.min(1, Math.max(0, (s - (j2 - 0.07)) / 0.14))));
         const rt = [], rb = []; for (let j = 0; j <= NCh; j++) { const v = j / NCh, th = 0.0085 * Math.sin(Math.min(1, v * 1.6 + 0.12) * Math.PI) * (1 - 0.6 * s); const p = c.clone().add(V(0, 0, 0.010 - chord * v)); rt.push(vtx(p.clone().add(V(0, th + 0.001, 0)), skin, NOF, [s, v, 6, 0.5])); rb.push(vtx(p.clone().add(V(0, -th * 0.5 - 0.0125 * v, 0)), skin, NOF, [s, v, 6, 0.0])); }
         rowsT.push(rt); rowsB.push(rb); }

@@ -6,7 +6,8 @@ import { clamp, lerp, smooth, loadPak, loadTexPak, fetchBytes, patchMaterial, GL
 export const U = {
   uTime: { value: 0 }, uSunDir: { value: new THREE.Vector3(0.4, 0.5, 0.3).normalize() }, uSunCol: { value: new THREE.Color(1, 0.9, 0.8) },
   uHor: { value: new THREE.Color(0.6, 0.7, 0.9) }, uZen: { value: new THREE.Color(0.1, 0.3, 0.7) }, uNight: { value: 0 }, uWet: { value: 0 },
-  uLampTex: { value: null }, uLampRect: { value: new THREE.Vector4(0, 0, 1, 1) }, uLampCol: { value: new THREE.Color(1.0, 0.62, 0.3) },
+  uOrtho: { value: null }, uOrthoRect: { value: new THREE.Vector4(0, 0, 1, 1) }, uOrthoOn: { value: 0 },   // the aerial photograph of the surroundings, also used to colour the roofs of the context buildings
+  uLampTex: { value: null }, uLampRect: { value: new THREE.Vector4(0, 0, 1, 1) }, uLampCol: { value: new THREE.Color(1.0, 0.68, 0.40) },
   uReflTex: { value: null }, uReflVP: { value: new THREE.Matrix4() }, uReflOn: { value: 0 }, uReflY: { value: 0 },
   uNoise: { value: null }, uCloud: { value: 0.45 }, uMoonDir: { value: new THREE.Vector3(-0.5, 0.6, 0.6).normalize() },
   uBSh: { value: null }, uBShM: { value: new THREE.Matrix4() }, uBShP: { value: new THREE.Vector4(0, 0, 0, 0) }, uBAO: { value: null }, uBAOM: { value: new THREE.Matrix4() }, uBAOP: { value: new THREE.Vector4(0, 0, 0, 0) },
@@ -92,7 +93,7 @@ export class TexStream {
 const F_PARS = `
 varying vec3 vWPos;
 uniform float uTime, uNight, uWet, uReflOn, uReflY; uniform vec3 uHor;
-uniform sampler2D uLampTex, uReflTex; uniform vec4 uLampRect; uniform vec3 uLampCol; uniform mat4 uReflVP;
+uniform sampler2D uLampTex, uReflTex, uOrtho; uniform vec4 uLampRect, uOrthoRect; uniform vec3 uLampCol; uniform mat4 uReflVP; uniform float uOrthoOn;
 ${GLSL_NOISE}
 ${GLSL_BSH}
 #define OCT(f) (1.0 - ss(0.10, 0.32, fw * (f)))
@@ -118,7 +119,7 @@ const V_END = `#ifdef USE_INSTANCING
 const GRASS_VB = `#ifdef USE_INSTANCING
 { float sw = clamp(color.a * 2.0 - 1.0, 0.0, 1.0); sw *= sw; vec2 ip = instanceMatrix[3].xz; float ph = uTime * 2.3 + ip.x * 1.9 + ip.y * 1.4; transformed.xz += vec2(sin(ph) + 0.4 * sin(ph * 2.3 + 1.1), 0.7 * cos(ph * 0.83)) * 0.006 * sw; }
 #endif`;
-const F_LAMP = `{ vec2 luv = (vWPos.xz - uLampRect.xy) * uLampRect.zw; vec4 lt = texture2D(uLampTex, luv); float gy = lt.g * 16.0 - 8.0; float hf = 1.0 - ss(0.5, 6.5, vWPos.y - gy); totalEmissiveRadiance += diffuseColor.rgb * uLampCol * (lt.r * lt.r) * hf * uNight * 1.5; }`;
+const F_LAMP = `{ vec2 luv = (vWPos.xz - uLampRect.xy) * uLampRect.zw; vec4 lt = texture2D(uLampTex, luv); float gy = lt.g * 16.0 - 8.0; float hf = 1.0 - ss(0.5, 6.5, vWPos.y - gy); vec3 le = diffuseColor.rgb * uLampCol * (lt.r * lt.r) * hf * uNight * 0.95; totalEmissiveRadiance += le / (1.0 + max(le.r, max(le.g, le.b)) * 0.75); }`;   // a soft shoulder, so that a pale wall or a vermilion fence next to a lamp keeps its colour
 const F_AO = `{ float aoK = mix(1.0, hAO, 0.86); reflectedLight.indirectDiffuse *= aoK; reflectedLight.directDiffuse *= mix(1.0, hAO, 0.25);
 #ifdef STANDARD
   reflectedLight.indirectSpecular *= aoK;
@@ -149,7 +150,7 @@ ${hi ? `        vec3 cr = hCR(map, vMapUv, uTexSize);   // magnified photo: Catm
 #endif
       diffuseColor.rgb *= 1.0 + (g * 0.13 + streak * 0.04) * k; hBump = (g + streak * 0.35) * k;
       float up = ss(0.75, 0.95, hWN.y); diffuseColor.rgb *= mix(1.0, 0.78, uWet * up); }\n`;
-    fEm += `{ vec3 c = diffuseColor.rgb; float warm = ss(0.06, 0.28, c.r - max(c.g, c.b) * 1.2) * ss(0.2, 0.55, c.r); totalEmissiveRadiance += c * warm * uNight * 3.0; }`;
+    fEm += `{ vec3 c = diffuseColor.rgb; float warm = ss(0.24, 0.46, c.r - max(c.g, c.b) * 1.25) * ss(0.30, 0.62, c.r) * (1.0 - ss(0.80, 1.0, hWN.y)); totalEmissiveRadiance += c * warm * uNight * 0.3; }`;
     fEm += `{ if (uNight > 0.01 && abs(hWN.y) < 0.35) { vec2 hn = normalize(hWN.xz + 1e-5); vec2 wp = vec2(dot(vWPos.xz, vec2(-hn.y, hn.x)) / 1.7, (vWPos.y + 1.2) / 2.9); vec2 id = floor(wp), f = fract(wp); float lit = step(0.70, h21(id + dot(floor(hn * 1.5 + 0.5), vec2(3.0, 7.0)) * 13.7)); float m = ss(0.16, 0.24, f.x) * (1.0 - ss(0.76, 0.84, f.x)) * ss(0.28, 0.36, f.y) * (1.0 - ss(0.70, 0.78, f.y)); vec3 wc = mix(vec3(1.0, 0.56, 0.22), vec3(1.0, 0.80, 0.52), h21(id + 3.1)); totalEmissiveRadiance += wc * lit * m * uNight * 0.85 * ss(45.0, 120.0, vViewPosition.z) * (0.55 + 0.45 * h21(id + 7.0)); } }`;
     if (std) fNormal = `normal = hPerturb(-vViewPosition, normal, hBump, 0.004);`;
   } else if (kind === 'road') {
@@ -246,7 +247,9 @@ ${turfBlk}
   } else if (kind === 'frnp') {
     fAlb += `{ vec2 tp = abs(hWN.y) > 0.6 ? vWPos.xz : (abs(hWN.x) > abs(hWN.z) ? vWPos.zy : vWPos.xy);
       float gr = vnoise(vec2(tp.x * 70.0 + tp.y * 3.0, tp.y * 6.0)) * 0.6 + vnoise(tp * 190.0) * 0.4 - 0.5; float blot = vnoise(tp * 2.3) - 0.5;
-      diffuseColor.rgb = uTint * (1.0 + gr * uGrain + blot * 0.25); hBump = gr; float up = ss(0.7, 0.95, hWN.y); diffuseColor.rgb *= mix(1.0, 0.7, uWet * up); }\n`;
+      diffuseColor.rgb = uTint * (1.0 + gr * uGrain + blot * 0.25); hBump = gr; float up = ss(0.7, 0.95, hWN.y);
+      if (uTint.r < 0.12) { float fw = max(fwidth(tp.x), fwidth(tp.y)); float gy = texture2D(uLampTex, (vWPos.xz - uLampRect.xy) * uLampRect.zw).g * 16.0 - 8.0, lid = ss(0.90, 0.98, hWN.y) * (1.0 - ss(0.10, 0.30, vWPos.y - gy)); vec2 dq = vec2(tp.x + tp.y, tp.x - tp.y) * 11.0; float tread = (1.0 - ss(0.10, 0.22, abs(fract(dq.x) - 0.5))) * step(0.5, fract(dq.y * 0.5)) * OCT(16.0);
+        diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.235, 0.225, 0.21) * (0.9 + gr * 0.25 + tread * 0.22), lid); hBump += tread * 1.5 * lid; } diffuseColor.rgb *= mix(1.0, 0.7, uWet * up); }\n`;
     if (std) fNormal = `normal = hPerturb(-vViewPosition, normal, hBump, 0.003);`;
   } else if (kind === 'shrub') {
     fAlb += `{ vec2 tp = abs(hWN.y) > 0.6 ? vWPos.xz : (abs(hWN.x) > abs(hWN.z) ? vWPos.zy : vWPos.xy); float fw = max(fwidth(tp.x), fwidth(tp.y));
@@ -311,11 +314,24 @@ ${turfBlk}
   if (kind === 'bld') fAlb += ` diffuseColor.rgb = max(diffuseColor.rgb, vec3(0.06, 0.06, 0.062));\n`;
   // LOD2 facades come from oblique aerial photos, mostly taken in shade: lift the darkest texels toward a plausible wall albedo so they read as walls, not black blocks
   if (kind === 'bld') fAlb += ` if (uLift > 0.5) { float lL = dot(diffuseColor.rgb, vec3(0.3, 0.59, 0.11)); diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * (0.17 / max(lL, 0.02)), ss(0.17, 0.03, lL) * 0.78); }\n`;
-  if (kind === 'ctx') fAlb += ` diffuseColor.rgb = mix(max(diffuseColor.rgb, vec3(0.07)), vec3(0.34, 0.33, 0.32), 0.3);\n`;
+  // LOD2 buildings inside the stage: their roof textures are much darker than the photographed ground around them, so from above the blocks read as charcoal boxes.
+  // The roof takes its hue and level from the aerial photograph and keeps the light and dark of its own texture.
+  if (kind === 'bld') fAlb += ` if (uLift > 0.5 && uOrthoOn > 0.5) { float roof = ss(0.45, 0.75, hWN.y); if (roof > 0.01) { vec3 oc = texture2D(uOrtho, (vWPos.xz - uOrthoRect.xy) * uOrthoRect.zw).rgb; float l = dot(oc, vec3(0.3, 0.5, 0.2)), tl = dot(diffuseColor.rgb, vec3(0.3, 0.59, 0.11)); vec3 rc = clamp(mix(vec3(l), oc, 1.25) * 1.7 + 0.02, 0.04, 0.8); diffuseColor.rgb = mix(diffuseColor.rgb, rc * clamp(0.55 + 0.45 * tl / 0.17, 0.7, 1.35), roof * 0.72); } }\n`;
+  if (kind === 'ctx') fAlb += ` diffuseColor.rgb = mix(max(diffuseColor.rgb, vec3(0.07)), vec3(0.34, 0.33, 0.32), 0.3);
+    // The surrounding buildings are LOD2 boxes with one colour each. Seen from above they were plain grey: their roofs now take the colour they have in the aerial
+    // photograph (GSI seamless photo, the same picture that lies on the ground), with tile courses on pitched roofs, and their walls get rows of windows.
+    { float roof = ss(0.45, 0.75, hWN.y), fwc = max(fwidth(vWPos.x), fwidth(vWPos.z));
+      if (roof > 0.01) { vec3 rc = diffuseColor.rgb; if (uOrthoOn > 0.5) { vec3 oc = texture2D(uOrtho, (vWPos.xz - uOrthoRect.xy) * uOrthoRect.zw).rgb; float l = dot(oc, vec3(0.3, 0.5, 0.2)); rc = clamp(mix(vec3(l), oc, 1.25) * 1.7 + 0.02, 0.04, 0.8); }   // the photograph is darker than the roofs' own reflectance; the factor brings them level with the photographed ground around them
+        rc *= 0.92 + 0.16 * vnoise(vWPos.xz * 0.9);
+        if (hWN.y < 0.975) { vec2 dn = normalize(hWN.xz + 1e-5); float across = dot(vWPos.xz, vec2(-dn.y, dn.x)), k = 1.0 - ss(0.05, 0.16, fwc);
+          rc *= 1.0 + 0.15 * sin(across * 22.4) * k; hAO *= 1.0 - 0.10 * k * (0.5 + 0.5 * sin(across * 22.4 + 1.6)); }
+        diffuseColor.rgb = mix(diffuseColor.rgb, rc, roof); }
+      if (abs(hWN.y) < 0.35) { vec2 hn = normalize(hWN.xz + 1e-5); vec2 wp = vec2(dot(vWPos.xz, vec2(-hn.y, hn.x)) / 2.4, (vWPos.y + 1.2) / 3.2), f = fract(wp); float fww = max(fwidth(wp.x), fwidth(wp.y));
+        float m = ss(0.16, 0.24, f.x) * (1.0 - ss(0.76, 0.84, f.x)) * ss(0.28, 0.36, f.y) * (1.0 - ss(0.70, 0.78, f.y)) * (1.0 - ss(0.25, 0.7, fww)); diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.05, 0.06, 0.075), m * 0.5); } }\n`;
   fEm += `{ float fr = pow(1.0 - clamp(dot(normal, normalize(vViewPosition)), 0.0, 1.0), 4.0); totalEmissiveRadiance += uHor * fr * 0.11 * (1.0 - uNight); }`;
   return { key: kind + (std ? 's' : 'l') + (hi && kind === 'bld' ? 'h' : ''), sunK: kind !== 'ctx', vPars: V_PARS + (kind === 'grass' ? ' uniform float uTime;' : '') + (kind === 'cloth' ? ' attribute vec4 aFace; attribute vec3 aBind; varying vec4 vFace; varying vec3 vBind;' : '') + (kind === 'car' ? ' varying vec3 vCar; varying vec3 vTint;' : ''), vBegin: kind === 'grass' ? GRASS_VB : kind === 'cloth' ? 'vFace = aFace; vBind = aBind;' : kind === 'car' ? 'vCar = position;\n#ifdef USE_INSTANCING_COLOR\n vTint = instanceColor.xyz;\n#else\n vTint = vec3(1.0);\n#endif' : undefined, vEnd: V_END, fPars: F_PARS + (kind === 'cloth' ? 'varying vec4 vFace; varying vec3 vBind;\n' : '') + (kind === 'car' ? 'varying vec3 vCar; varying vec3 vTint;\n' : '') + (kind === 'bld' ? 'uniform vec2 uTexSize; uniform float uLift;\n' + (hi ? HCR : '') : '') + (kind === 'frnp' ? 'uniform vec3 uTint; uniform float uGrain;\n' : '') + (kind === 'ground' ? 'uniform sampler2D uNavTex; uniform vec4 uNavRect; uniform vec3 uSunDir;\n' : ''), fAlbedo: fAlb, fRough, fNormal, fEmissive: fEm, fAO: F_AO, fFinal: F_FINAL };
 }
-const sharedU = () => ({ uHor: U.uHor, uBSh: U.uBSh, uBShM: U.uBShM, uBShP: U.uBShP, uBAO: U.uBAO, uBAOM: U.uBAOM, uBAOP: U.uBAOP, uTime: U.uTime, uNight: U.uNight, uWet: U.uWet, uLampTex: U.uLampTex, uLampRect: U.uLampRect, uLampCol: U.uLampCol, uReflTex: U.uReflTex, uReflVP: U.uReflVP, uReflOn: U.uReflOn, uReflY: U.uReflY });
+const sharedU = () => ({ uHor: U.uHor, uBSh: U.uBSh, uBShM: U.uBShM, uBShP: U.uBShP, uBAO: U.uBAO, uBAOM: U.uBAOM, uBAOP: U.uBAOP, uTime: U.uTime, uNight: U.uNight, uWet: U.uWet, uLampTex: U.uLampTex, uLampRect: U.uLampRect, uLampCol: U.uLampCol, uReflTex: U.uReflTex, uReflVP: U.uReflVP, uReflOn: U.uReflOn, uReflY: U.uReflY, uOrtho: U.uOrtho, uOrthoRect: U.uOrthoRect, uOrthoOn: U.uOrthoOn });
 export function cityMaterial(kind, Q, opts = {}) {
   const M = Q.pbr ? THREE.MeshStandardMaterial : THREE.MeshLambertMaterial; const p = { vertexColors: true, ...(opts.params || {}) };
   if (Q.pbr) { p.roughness = opts.rough ?? 0.86; p.metalness = 0; p.envMapIntensity = opts.env ?? 0.55; }
@@ -408,13 +424,16 @@ function makeNoiseTex() {
 export class World {
   constructor(renderer, scene, Q) { this.r = renderer; this.scene = scene; this.Q = Q; this.meshes = []; this.city = new THREE.Group(); scene.add(this.city); U.uNoise.value = makeNoiseTex();
     const dt = new THREE.DepthTexture(2, 2); dt.compareFunction = THREE.LessEqualCompare; dt.minFilter = dt.magFilter = THREE.LinearFilter; U.uBSh.value = dt; }
-  async load(onProg) {
+  async load(onProg, stage = async () => { }) {
     const Q = this.Q, P = (k, w) => (n, t) => onProg(k, t ? n / t : 0, w);
     const [meta, navPak] = await Promise.all([fetch(asset('d/meta.json')).then(r => r.json()), loadPak('d/nav.txt', P('nav', 3.0), 3024688)]);
     this.meta = meta; this.nav = new Nav(navPak); this.env = new Env(this.scene, Q);
     this.tex = new TexStream(this.r, meta.tex, Q);
     const [corePak] = await Promise.all([loadPak('d/core.txt', P('core', 15.2), 15216300), this.tex.loadBase('t/b.txt', P('tex', 1.15), 1151052)]);
-    this._lampTex(); this._buildCity(corePak); this._buildTerrain(); this._buildWater();
+    await stage('light', '街を組み立て中：街灯の明かり'); this._lampTex(); this._lampGlow();
+    await stage('city', '街を組み立て中：建物と路地'); this._buildCity(corePak);
+    await stage('ground', '街を組み立て中：地面'); this._buildTerrain();
+    await stage('water', '街を組み立て中：鴨川'); this._buildWater();
     this.ready = true;
     // background: context buildings + mid textures + far terrain
     this.bg = (async () => { const ctx = await loadPak('d/ctx.txt'); this._buildCtx(ctx); await this.tex.loadMid('t/m.txt'); this._buildFar(); })();
@@ -445,9 +464,18 @@ export class World {
     this._texLvl = () => { for (const n in this.tex.e) { const e = this.tex.e[n]; if (e.mat && e.lvl >= 0 && e._l !== e.lvl) { e._l = e.lvl; const t = this.meta.tex[n], k = [8, 4, 2, 1][e.lvl]; e.mat.userData.uniforms.uTexSize.value.set(t.w / k, t.h / k); } } };
   }
   _buildCtx(pak) { const mat = cityMaterial('ctx', this.Q); for (const it of pak.json.items) { const m = new THREE.Mesh(this._geom(pak, it), mat); m.matrixAutoUpdate = false; m.castShadow = false; m.receiveShadow = false; this.city.add(m); } }
+  // a soft glow at every lamp head (PLATEAU city furniture whose function is lighting): a billboard that is added to the picture, so the lamps themselves are seen to be lit
+  _lampGlow() { const L = this.meta.lamps; if (!L || !L.length) return; const n = L.length, a = new Float32Array(n * 4);
+    for (let i = 0; i < n; i++) { const l = L[i], hd = Math.min(l[3], 0.7), lit = l.length > 6;   // l[4..6]: where the light sits in the fixture (pipeline/export.mjs); older data has only the box
+      a[i * 4] = lit ? l[4] : l[0]; a[i * 4 + 1] = lit ? l[5] : l[1] - hd * 0.5; a[i * 4 + 2] = lit ? l[6] : l[2]; a[i * 4 + 3] = l[3] > 1 ? 0.40 : 0.10 + clamp(l[3], 0.1, 0.5) * 0.6; }
+    const g = new THREE.InstancedBufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute([-1, -1, 0, 1, -1, 0, 1, 1, 0, -1, 1, 0], 3)); g.setIndex([0, 1, 2, 0, 2, 3]); g.setAttribute('aLamp', new THREE.InstancedBufferAttribute(a, 4)); g.instanceCount = n;
+    const m = new THREE.ShaderMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, uniforms: { uOn: { value: 0 } },
+      vertexShader: `attribute vec4 aLamp; varying vec2 vP; void main(){ vP = position.xy; vec4 mv = viewMatrix * vec4(aLamp.xyz, 1.0); mv.xy += position.xy * aLamp.w; mv.z += aLamp.w * 0.8; gl_Position = projectionMatrix * mv; }`,
+      fragmentShader: `precision highp float; varying vec2 vP; uniform float uOn; void main(){ float r2 = dot(vP, vP); float a = (exp(-r2 * 11.0) * 1.05 + exp(-r2 * 2.6) * 0.20) * (1.0 - smoothstep(0.7, 1.0, r2)) * uOn; gl_FragColor = vec4(vec3(1.0, 0.68, 0.36) * a, 1.0); }` });
+    const mesh = new THREE.Mesh(g, m); mesh.frustumCulled = false; mesh.renderOrder = 6; mesh.visible = false; this.scene.add(mesh); this.lampGlow = mesh; }
   _lampTex() { // world-space light pool map (R intensity, G ground height) built from PLATEAU lamp positions
     const nav = this.nav, c = nav.core, W = 512, H = Math.round(512 * c.h / c.w), d = new Float32Array(W * H), out = new Uint8Array(W * H * 4), sx = c.w * c.res / W, sz = c.h * c.res / H;
-    for (const L of this.meta.lamps) { const cx = (L[0] - c.x0) / sx, cz = (L[2] - c.z0) / sz, hgt = clamp(L[3], 1.2, 7), rad = (5 + hgt * 2.2) / sx, pw = 0.5 + 0.12 * hgt;
+    for (const L of this.meta.lamps) { const cx = ((L.length > 6 ? L[4] : L[0]) - c.x0) / sx, cz = ((L.length > 6 ? L[6] : L[2]) - c.z0) / sz, hgt = clamp(L[3], 1.2, 7), rad = (5 + hgt * 2.2) / sx, pw = 0.5 + 0.12 * hgt;
       for (let j = Math.max(0, Math.floor(cz - rad)); j <= Math.min(H - 1, Math.ceil(cz + rad)); j++) for (let i = Math.max(0, Math.floor(cx - rad)); i <= Math.min(W - 1, Math.ceil(cx + rad)); i++) { const r = Math.hypot(i - cx, j - cz) / rad; if (r < 1) d[j * W + i] += pw * Math.pow(1 - r, 2.2) / (0.15 + r * r * 3); } }
     // the LOD3 streets (Pontocho, Gion Shirakawa) are lined with shop fronts and lanterns: add a continuous glow along them
     { const g = new Float32Array(W * H); for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) if (nav.cls(c.x0 + (i + 0.5) * sx, c.z0 + (j + 0.5) * sz) === 2) g[j * W + i] = 1.0;
@@ -490,7 +518,7 @@ export class World {
       for (let j = 0; j <= nz; j++) for (let i = 0; i <= nx; i++) { const k = j * (nx + 1) + i, px = x.x0 + (i * s2 + 0.5) * x.res, pz = x.z0 + (j * s2 + 0.5) * x.res; pos[k * 3] = px; pos[k * 3 + 1] = nav.cG[j * s2 * x.w + i * s2] / 100 - 0.12; pos[k * 3 + 2] = pz; uv[k * 2] = (px - B.x0) / (B.x1 - B.x0); uv[k * 2 + 1] = (pz - B.z0) / (B.z1 - B.z0); }
       for (let j = 0; j < nz; j++) for (let i = 0; i < nx; i++) { const px = x.x0 + (i * s2 + 0.5) * x.res, pz = x.z0 + (j * s2 + 0.5) * x.res, e = x.res * s2; if (px > C.x0 - 4 && px + e < C.x1 + 4 && pz > C.z0 - 4 && pz + e < C.z1 + 4) continue; const a = j * (nx + 1) + i, b = a + 1, d = a + nx + 1; idx.push(a, d, b, b, d, d + 1); }
       const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.BufferAttribute(uv, 2)); g.setIndex(idx); g.computeVertexNormals();
-      const m = new THREE.Mesh(g, mk(null)); m.receiveShadow = true; m.matrixAutoUpdate = false; this.terrainCtx = m; this.scene.add(m); load('t/ortho_ctx.webp', t => { m.material.map = t; m.material.needsUpdate = true; }); }
+      const m = new THREE.Mesh(g, mk(null)); m.receiveShadow = true; m.matrixAutoUpdate = false; this.terrainCtx = m; this.scene.add(m); load('t/ortho_ctx.webp', t => { m.material.map = t; m.material.needsUpdate = true; U.uOrtho.value = t; U.uOrthoRect.value.set(B.x0, B.z0, 1 / (B.x1 - B.x0), 1 / (B.z1 - B.z0)); U.uOrthoOn.value = 1; }); }
   }
   // ---- CPU-side queries for the ground cover (js/cover.js)
   _green(bmp) { // greenness of the aerial photo, linear g - max(r, b): the same measure the ground shader thresholds
@@ -552,7 +580,7 @@ export class World {
           gl_FragColor = vec4(col, vDepth); }` });
     const m = new THREE.Mesh(g, mat); m.matrixAutoUpdate = false; m.frustumCulled = false; m.userData.water = true; this.water = m; this.scene.add(m);
   }
-  setHour(h) { this.env.setHour(h); }
+  setHour(h) { this.env.setHour(h); if (this.lampGlow) { this.lampGlow.material.uniforms.uOn.value = this.env.lampOn; this.lampGlow.visible = this.env.lampOn > 0.01; } }
   update(cam, focus, dt) {
     U.uTime.value += dt; { const ev = this.Q.shadowEvery || 1; this._sf = (this._sf || 0) + 1; const doSh = ev === 1 || this._sf % ev === 0 || this._sf < 4 || this._shHour !== this.env.hour; this._shHour = this.env.hour; this.env.update(focus, dt, doSh); if (this.Q.shadow) { this.r.shadowMap.autoUpdate = false; this.r.shadowMap.needsUpdate = doSh; } }
     this.tex.update(cam.position, dt); if (this._texLvl) this._texLvl();

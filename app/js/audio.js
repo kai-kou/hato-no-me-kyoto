@@ -5,7 +5,7 @@ export class Sound {
     if (this.ctx) { if (this.ctx.state === 'suspended') this.ctx.resume(); return; }
     const AC = window.AudioContext || window.webkitAudioContext; if (!AC && !offline) return;
     const c = this.ctx = offline || new AC(); this.master = c.createGain(); this.master.gain.value = 0;
-    const comp = c.createDynamicsCompressor(); comp.threshold.value = -16; comp.ratio.value = 5; this.master.connect(comp); comp.connect(c.destination);
+    const comp = c.createDynamicsCompressor(); comp.threshold.value = -16; comp.ratio.value = 5; this.master.connect(comp); comp.connect(c.destination); try { this.an = c.createAnalyser(); this.an.fftSize = 2048; comp.connect(this.an); } catch (e) { }   // a tap on the output, so the page can report whether anything is actually sounding
     const len = c.sampleRate * 4, buf = c.createBuffer(1, len, c.sampleRate), d = buf.getChannelData(0); let b0 = 0, b1 = 0, b2 = 0;
     for (let i = 0; i < len; i++) { const w = Math.random() * 2 - 1; b0 = 0.99765 * b0 + w * 0.0990460; b1 = 0.963 * b1 + w * 0.2965164; b2 = 0.57 * b2 + w * 1.0526913; d[i] = (b0 + b1 + b2 + w * 0.1848) * 0.22; }
     this.noise = buf;
@@ -13,6 +13,8 @@ export class Sound {
     this.river = loop('bandpass', 850, 0.45); this.riverHi = loop('highpass', 2600, 0.3); this.city = loop('lowpass', 170, 0.3); this.cityMid = loop('bandpass', 430, 0.35); this.wind = loop('bandpass', 380, 0.9);
     this.on = true; this.master.gain.linearRampToValueAtTime(this.muted ? 0 : this.vol, c.currentTime + 1.8);
   }
+  // output level in dB (RMS of the last 2048 samples); about -100 when silent
+  level() { if (!this.an) return -100; try { const a = this._lv || (this._lv = new Float32Array(this.an.fftSize)); this.an.getFloatTimeDomainData(a); let q = 0; for (let i = 0; i < a.length; i++) q += a[i] * a[i]; return 10 * Math.log10(q / a.length + 1e-10); } catch (e) { return -100; } }
   setMuted(m) { this.muted = m; if (this.ctx) this.master.gain.setTargetAtTime(m ? 0 : this.vol, this.ctx.currentTime, 0.15); }
   ambience(river, city, wind) { if (!this.on) return; const t = this.ctx.currentTime; this.river.g.gain.setTargetAtTime(river * 0.55, t, 0.4); this.riverHi.g.gain.setTargetAtTime(river * river * 0.10, t, 0.4); this.city.g.gain.setTargetAtTime(city * 0.9, t, 0.6); this.cityMid.g.gain.setTargetAtTime(city * 0.22, t, 0.6); this.wind.g.gain.setTargetAtTime(wind * 0.5, t, 0.25); this.wind.f.frequency.setTargetAtTime(300 + wind * 500, t, 0.3); }
   _out(pan) { const c = this.ctx; if (c.createStereoPanner) { const p = c.createStereoPanner(); p.pan.value = Math.max(-1, Math.min(1, pan || 0)); p.connect(this.master); return p; } return this.master; }

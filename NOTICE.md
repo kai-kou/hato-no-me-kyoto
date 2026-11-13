@@ -20,8 +20,8 @@
 | 項目 | 内容 |
 | --- | --- |
 | 地形、水面の範囲 | 地理院タイル（標高タイル：基盤地図情報数値標高モデル DEM1A、DEM5A、DEM10B）を加工して作成 |
-| 舞台の地表の色 | 地理院タイル（シームレス空中写真、ズームレベル 18）を加工して作成 |
-| 遠景の地表の色 | 地理院タイル（シームレス空中写真、ズームレベル 12）を加工して作成。このズームレベルのデータソースは、Landsat8 画像（GSI, TSIC, GEO Grid/AIST）、Landsat8 画像（courtesy of the U.S. Geological Survey）、海底地形（GEBCO） |
+| 舞台と周囲の地表の色、LOD2 建築物の屋根の色 | 地理院タイル（シームレス空中写真、ズームレベル 18）を加工して作成 |
+| 遠景の地表の色 | 地理院タイル（シームレス空中写真、ズームレベル 12）を加工して作成。データソース：Landsat8画像（GSI,TSIC,GEO Grid/AIST）, Landsat8画像（courtesy of the U.S. Geological Survey）, 海底地形（GEBCO） |
 | 出典 | 国土地理院 地理院タイル一覧 <https://maps.gsi.go.jp/development/ichiran.html> |
 | 利用条件 | 国土地理院コンテンツ利用規約 <https://www.gsi.go.jp/kikakuchousei/kikakuchousei40182.html> に従う |
 

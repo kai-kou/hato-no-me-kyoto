@@ -1,5 +1,5 @@
 #!/bin/bash
-# Run the release checks against the app: module syntax, a full interaction flow on three browser engines,
+# Run the release checks against the app: module syntax, a full interaction flow on three browser engines, taps and buttons through real input events,
 # missing files, the sandboxed-iframe / CSP conditions of the hosting page, and the landing page that opens first.
 # usage: tools/run_checks.sh [app directory]
 # needs: node, python3 with playwright (chromium, webkit, firefox), xvfb-run for the Firefox run
@@ -9,6 +9,7 @@ OUT=${HATO_TMP:-${TMPDIR:-/tmp}/hato}; mkdir -p "$OUT"
 
 echo "== module syntax"; "$HERE/jscheck.sh" "$HATO_DIR"
 echo "== chromium flow (high)"; python3 "$HERE/xengine.py" chromium "t=15.5" "$OUT/f_cr_flow.png" 1280x720 "$HERE/choreo/flow.js" 2>&1 | grep -v "GPU stall"
+echo "== interaction with real input events (loading steps, taps, panorama, sound, hours)"; python3 "$HERE/uitest.py" "$OUT/ui" 2>&1 | grep -v "^ok" | tail -6
 echo "== missing files"; python3 "$HERE/net404.py" "auto=1&t=15.5" 2>&1 | tail -2
 echo "== csp chromium (from the landing page)"; python3 "$HERE/csptest.py" chromium 800x480 2>&1 | grep -v "GPU stall" | tail -8
 echo "== csp webkit (from the landing page)"; python3 "$HERE/csptest.py" webkit 800x480 2>&1 | tail -8

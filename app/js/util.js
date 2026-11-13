@@ -13,12 +13,16 @@ export const R = Math.random, rr = (a, b) => a + (b - a) * Math.random();
 // ---- pak: deflate-raw( u32 magic, u32 jsonLen, json, payload ) ----
 // data files are addressed relative to where the scripts are actually served from
 export const asset = p => new URL('../' + p, import.meta.url).href;
+const join = chunks => { let n = 0; for (const c of chunks) n += c.length; const out = new Uint8Array(n); let o = 0; for (const c of chunks) { out.set(c, o); o += c.length; } return out; };
 export async function fetchBytes(url, onProg, expect) {
-  const res = await fetch(asset(url)); if (!res.ok) throw new Error(url + ' ' + res.status);
+  // the landing page may have started this download while it was being read (window.__hatoPre, see index.html): take it over, with its progress
+  const href = asset(url), pre = window.__hatoPre && window.__hatoPre[href];
+  if (pre) { try { if (onProg) { pre.cb = n => onProg(Math.min(n, expect || n), expect || pre.total); pre.cb(pre.n); } const out = join(await pre.p); delete window.__hatoPre[href]; return out; } catch (e) { delete window.__hatoPre[href]; } }
+  const res = await fetch(href); if (!res.ok) throw new Error(url + ' ' + res.status);
   const total = expect || +res.headers.get('content-length') || 0; if (!res.body || !onProg) return new Uint8Array(await res.arrayBuffer());
   const rd = res.body.getReader(), chunks = []; let n = 0;
   for (;;) { const { done, value } = await rd.read(); if (done) break; chunks.push(value); n += value.length; onProg(Math.min(n, total || n), total); }
-  const out = new Uint8Array(n); let o = 0; for (const c of chunks) { out.set(c, o); o += c.length; } return out;
+  return join(chunks);
 }
 export async function inflateRaw(bytes) {
   const ds = new DecompressionStream('deflate-raw'); const w = ds.writable.getWriter(); w.write(bytes); w.close();

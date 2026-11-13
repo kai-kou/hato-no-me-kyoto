@@ -33,7 +33,12 @@ app.restartAt = restartAt; window.__app = app;
 function resize() { const pr = Math.min(window.devicePixelRatio || 1, Q.maxPR) * Q.scale * app.drs, w = Math.max(2, Math.round(innerWidth * pr)), h = Math.max(2, Math.round(innerHeight * pr)); renderer.setSize(w, h, false); post.setSize(w, h); camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); }
 addEventListener('resize', resize); addEventListener('orientationchange', () => setTimeout(resize, 250)); resize(); app.resize = resize;
 
-const prog = {}; function onProg(k, f, w) { prog[k] = [f, w]; let a = 0, b = 0; for (const key in prog) { a += prog[key][0] * prog[key][1]; b += prog[key][1]; } const el = $('bar'), p = 100 * a / Math.max(b, 19.3); if (el) el.style.width = p.toFixed(1) + '%'; const pc = $('pct'); if (pc) pc.textContent = Math.round(p) + '%'; }
+// Loading screen. The download fills the bar to 78 % and is reported in megabytes (the weights are the file sizes in MB); the rest is the build,
+// one named step at a time. Each step waits a moment first, so that the browser can show its name before the step blocks the page.
+const prog = {}, T0 = performance.now(), STEPS = ['light', 'city', 'ground', 'water', 'birds', 'scenery', 'people', 'cover', 'gpu']; app.boot = { steps: [] };
+const setBar = p => { const el = $('bar'); if (el) el.style.width = p.toFixed(1) + '%'; const pc = $('pct'); if (pc) pc.textContent = Math.round(p) + '%'; };
+function onProg(k, f, w) { prog[k] = [f, w]; let a = 0, b = 0; for (const key in prog) { a += prog[key][0] * prog[key][1]; b += prog[key][1]; } const tot = Math.max(b, 19.3); if (app.boot.steps.length) return; setBar(78 * a / tot); const st = $('stage'); if (st) st.textContent = `街のデータを取得中　${a.toFixed(1)} / ${tot.toFixed(1)} MB`; }
+app.stage = (key, label) => { const i = Math.max(0, STEPS.indexOf(key)); if (!app.boot.steps.length) app.boot.fetched = Math.round(performance.now() - T0); app.boot.steps.push([key, Math.round(performance.now() - T0)]); setBar(78 + 22 * i / STEPS.length); const st = $('stage'); if (st) st.textContent = label; return new Promise(r => setTimeout(r, 24)); };
 
 let last = performance.now();
 function frame(now) {
@@ -51,17 +56,22 @@ function frame(now) {
   }
   post.finish();
   app.frames = (app.frames || 0) + 1; if (REC) window.__rendered = app.frames;
+  if (!app.shown) { app.shown = true; app.boot.shown = Math.round(performance.now() - T0); const ld = $('loading'); if (ld) ld.classList.add('done'); document.body.classList.add('ready'); }   // the loading screen stays until the first frame is on the screen
 }
 
 (async () => {
   try {
-    await world.load(onProg); world.setHour(app.hour);
+    await world.load(onProg, app.stage); world.setHour(app.hour);
     U.uWet.value = +(qs.get('wet') || 0);
     const c = (qs.get('cam') || '-66,1.2,40,-80,2.5,-40').split(',').map(Number); camera.position.set(c[0], c[1], c[2]); camera.lookAt(c[3], c[4], c[5]); app.focus.set(c[0], 0, c[2]); if (qs.get('fov')) { camera.fov = +qs.get('fov'); camera.updateProjectionMatrix(); }
     if (qs.get('refl')) app.reflY = +qs.get('refl');
     if (qs.get('dof')) { const d = qs.get('dof').split(',').map(Number); post.opts.dofOn = true; post.opts.focus = d[0]; post.opts.aperture = d[1]; }
     const mod = await import('./game.js'); await mod.start(app);
-    app.ready = true; const ld = $('loading'); if (ld) ld.classList.add('done'); document.body.classList.add('ready');
+    // compile the shaders of the scene before the first frame, in the background where the browser can (KHR_parallel_shader_compile): otherwise the first frame blocks the page for as long as that takes
+    await app.stage('gpu', '描画の準備中（初回は少し時間がかかります）');
+    if (!qs.get('nopre')) { try { renderer.setRenderTarget(post.rt); if (renderer.extensions.has('KHR_parallel_shader_compile')) await Promise.race([renderer.compileAsync(scene, camera), new Promise(r => setTimeout(r, 25000))]); else renderer.compile(scene, camera); } catch (e) { console.warn('precompile: ' + (e && e.message)); } renderer.setRenderTarget(null); }
+    app.boot.ready = Math.round(performance.now() - T0); setBar(100);
+    app.ready = true;
     world.bg.then(() => { app.bgDone = true; }).catch(e => console.warn('background load: ' + e.message));
   } catch (e) { console.error(e); const el = $('err'); if (el) { el.textContent = '読み込みに失敗しました: ' + (e && e.message || e); el.style.display = 'block'; } }
 })();

@@ -90,8 +90,20 @@ const cs = core.write(`${OUT}/d/core.bin`); console.log('core.bin', cs, 'meshes'
   const of = await sharp(`${CACHE}/photofar.png`).resize(512, 512).webp({ quality: 70 }).toBuffer(); fs.writeFileSync(`${OUT}/t/far.webp`, of); console.log('ortho', oc.length, ox.length, of.length); }
 
 // ---------- metadata ----------
-{ const F = loadLayer('frn').features, lamps = [], pois = [];
-  for (const f of F) { const b = f.bb, fn = f.func || ''; const cx = (b[0] + b[3]) / 2, cz = (b[2] + b[5]) / 2; if (fn.includes('照明')) lamps.push([+cx.toFixed(2), +b[4].toFixed(2), +cz.toFixed(2), +(b[4] - b[1]).toFixed(2)]); else if (/祠|ベンチ|自動販売機|看板|信号/.test(fn)) pois.push({ t: fn, p: [+cx.toFixed(2), +b[1].toFixed(2), +cz.toFixed(2)], s: [+(b[3] - b[0]).toFixed(2), +(b[4] - b[1]).toFixed(2), +(b[5] - b[2]).toFixed(2)] }); }
+{ const FL = loadLayer('frn'), F = FL.features, lamps = [], pois = [];
+  // Where the light sits in each lighting fixture. The lamp is the bulky part: the lantern under a bracket, the head on a post, the luminaire in the
+  // middle of an arm. The height is cut into 8 bands and the band that is both wide and dense is taken (with a neighbour that is nearly as bulky);
+  // fixtures lower than 45 cm are taken whole. The app puts its glow there and centres the pool of light on the ground under it.
+  const lampV = new Map(); F.forEach((f, i) => { if ((f.func || '').includes('照明')) lampV.set(i, []); });
+  for (const g of FL.groups) for (let v = 0; v < g.fid.length; v++) { const a = lampV.get(g.fid[v]); if (a) a.push(g.pos[v * 3], g.pos[v * 3 + 1], g.pos[v * 3 + 2]); }
+  const lightPoint = (P, b) => { let lx = (b[0] + b[3]) / 2, ly = b[4] - Math.min(b[4] - b[1], 0.7) / 2, lz = (b[2] + b[5]) / 2; if (P.length < 9) return [lx, ly, lz];
+    let lo = 1e9, hi = -1e9; for (let k = 1; k < P.length; k += 3) { lo = Math.min(lo, P[k]); hi = Math.max(hi, P[k]); }
+    const N = hi - lo < 0.45 ? 1 : 8, cnt = new Array(N).fill(0), box = Array.from({ length: N }, () => [1e9, -1e9, 1e9, -1e9]), band = y => Math.max(0, Math.min(N - 1, Math.floor((y - lo) / (hi - lo + 1e-6) * N)));
+    for (let k = 0; k < P.length; k += 3) { const d = band(P[k + 1]), m = box[d]; cnt[d]++; m[0] = Math.min(m[0], P[k]); m[1] = Math.max(m[1], P[k]); m[2] = Math.min(m[2], P[k + 2]); m[3] = Math.max(m[3], P[k + 2]); }
+    const sc = cnt.map((c, d) => c ? c * Math.max(box[d][1] - box[d][0], box[d][3] - box[d][2], 0.02) ** 2 : 0), best = sc.indexOf(Math.max(...sc)); let sx = 0, sy = 0, sz = 0, n = 0;
+    for (let k = 0; k < P.length; k += 3) { const d = band(P[k + 1]); if (d === best || (Math.abs(d - best) === 1 && sc[d] >= 0.5 * sc[best])) { sx += P[k]; sy += P[k + 1]; sz += P[k + 2]; n++; } }
+    return n ? [sx / n, sy / n, sz / n] : [lx, ly, lz]; };
+  for (let fi = 0; fi < F.length; fi++) { const f = F[fi], b = f.bb, fn = f.func || ''; const cx = (b[0] + b[3]) / 2, cz = (b[2] + b[5]) / 2; if (fn.includes('照明')) { const L = lightPoint(lampV.get(fi), b); lamps.push([+cx.toFixed(2), +b[4].toFixed(2), +cz.toFixed(2), +(b[4] - b[1]).toFixed(2), +L[0].toFixed(2), +L[1].toFixed(2), +L[2].toFixed(2)]); } else if (/祠|ベンチ|自動販売機|看板|信号/.test(fn)) pois.push({ t: fn, p: [+cx.toFixed(2), +b[1].toFixed(2), +cz.toFixed(2)], s: [+(b[3] - b[0]).toFixed(2), +(b[4] - b[1]).toFixed(2), +(b[5] - b[2]).toFixed(2)] }); }
   const trees = loadLayer('vegs').features.map(f => { const b = f.bb; return [+((b[0] + b[3]) / 2).toFixed(2), +b[1].toFixed(2), +((b[2] + b[5]) / 2).toFixed(2), +(b[4] - b[1]).toFixed(2), +(((b[3] - b[0]) + (b[5] - b[2])) / 4).toFixed(2)]; });
   const meta = { origin: ORIGIN, core: CORE_L, ctx: CTX_L, tex: texTable, lamps, trees, pois };
   fs.writeFileSync(`${OUT}/d/meta.json`, JSON.stringify(meta)); console.log('meta: lamps', lamps.length, 'trees', trees.length, 'pois', pois.length, 'tex', Object.keys(texTable).length); }

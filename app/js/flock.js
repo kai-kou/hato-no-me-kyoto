@@ -24,7 +24,7 @@ export class Flock {
   }
   // ---------------------------------------------------------------- environment knowledge
   _sites() {
-    const nav = this.nav, c = nav.core, S = [], perches = [], shore = [], decks = [];
+    const nav = this.nav, c = nav.core, S = [], perches = [], shore = [], decks = [], eaves = [];
     const ok = (x, z) => nav.walkable(x, z) && nav.cls(x, z) !== 1;
     const add = (x, z, r, n, w) => { if (ok(x, z)) S.push({ x, z, r, n, w, y: nav.ground(x, z) }); };
     for (const z of [-28, 22, -78, 70, -130, 118, -185]) add(-66 + (z < -100 ? 2 : 0), z, 7, '鴨川 西岸の河川敷', 3);
@@ -36,10 +36,10 @@ export class Flock {
     this.sites = S;
     // perches: roof edges (building top next to a lower cell), decks / fences (furniture tops)
     for (let j = 3; j < c.h - 3; j += 3) for (let i = 3; i < c.w - 3; i += 3) { const k = j * c.w + i, t = nav.T[k]; const x = c.x0 + (i + 0.5) * c.res, z = c.z0 + (j + 0.5) * c.res;
-      if (t !== -32768) { const y = t / 100, g = nav.G[k] / 100; if (y - g < 3.5 || y - g > 22) continue; let edge = false; for (const [a, b] of [[2, 0], [-2, 0], [0, 2], [0, -2]]) { const q = nav.T[(j + b) * c.w + i + a]; if (q === -32768 || q / 100 < y - 2.5) { edge = true; break; } } if (edge && Math.random() < 0.5) perches.push({ x, y, z }); }
+      if (t !== -32768) { const y = t / 100, g = nav.G[k] / 100; if (y - g < 2.2 || y - g > 22) continue; let edge = false; for (const [a, b] of [[2, 0], [-2, 0], [0, 2], [0, -2]]) { const q = nav.T[(j + b) * c.w + i + a]; if (q === -32768 || q / 100 < y - (y - g < 3.5 ? 1.6 : 2.5)) { edge = true; break; } } if (edge) { if (y - g < 3.5) eaves.push({ x, y, z }); else if (Math.random() < 0.5) perches.push({ x, y, z }); } }
       else { const f = nav.F[k]; if (f !== -32768) { const y = f / 100, g = nav.G[k] / 100; if (y - g > 0.9 && y - g < 6 && Math.random() < 0.35) decks.push({ x, y, z }); } }
-      if (nav.C[k] === 1 && nav.W[k] / 100 - nav.G[k] / 100 < 0.06 && x < -40 && Math.random() < 0.3) shore.push({ x, z, y: nav.W[k] / 100 }); }
-    this.perches = perches; this.decks = decks; this.shore = shore;
+      if (nav.C[k] === 1 && nav.W[k] - nav.G[k] <= 6 && x < -40 && Math.random() < 0.3) shore.push({ x, z, y: nav.W[k] / 100 }); }   /* the water's edge: the shallowest cells, 6 cm deep (compared in whole centimetres: as metres the test came down to float rounding and passed 11 of the 78 cells) */
+    this.perches = perches; this.decks = decks; this.shore = shore; this.eaves = eaves;
     for (const s of S) { s.perch = perches.filter(p => Math.hypot(p.x - s.x, p.z - s.z) < 75).concat(decks.filter(p => Math.hypot(p.x - s.x, p.z - s.z) < 60)); if (!s.perch.length) s.perch = perches.slice(0, 50); }
     for (const s of S) for (let k = 0; k < 22 * s.w; k++) this._crumb(s);
   }
@@ -58,16 +58,39 @@ export class Flock {
   }
   // ---------------------------------------------------------------- decisions
   chooseSite(b) { if (R() < 0.4) return b.fav; const m = this.B[b.mate]; if (m && m.st === 'forage' && R() < 0.5) return m.site; let best = null, bn = 0; for (const s of this.sites) { let n = 0; for (const q of this.B) if (q.site === s && q.st === 'forage') n++; n *= s.w; if (n > bn) { bn = n; best = s; } } return best && R() < 0.6 ? best : this.sites[(R() * this.sites.length) | 0]; }
-  flyTo(b, x, y, z, next, alarm) { if (!b.air) { b.takeoff = 0; this.events.push({ t: 'takeoff', b, alarm: !!alarm }); } b.st = 'fly'; b.t = 0; b.dest = { x, y, z }; b.next = next; b.alarm = !!alarm; b.air = true; b.peck = 0; b.peckT = null; b.food = null; b.perch = null; if (Math.hypot(b.vx, b.vz) < 1) { b.vx = Math.sin(b.yaw) * 1.5; b.vz = Math.cos(b.yaw) * 1.5; b.vy = 2.4; } }
+  flyTo(b, x, y, z, next, alarm) { if (!b.air) { b.takeoff = 0; this.events.push({ t: 'takeoff', b, alarm: !!alarm }); } b.st = 'fly'; b.t = 0; b.nearT = 0; b.dest = { x, y, z }; b.next = next; b.alarm = !!alarm; b.air = true; b.peck = 0; b.peckT = null; b.food = null; b.perch = null; if (Math.hypot(b.vx, b.vz) < 1) { b.vx = Math.sin(b.yaw) * 1.5; b.vz = Math.cos(b.yaw) * 1.5; b.vy = 2.4; } }
   goForage(b, s) { b.site = s; const g = this._groundPoint(s, s.r * 0.7); this.flyTo(b, g.x, g.y, g.z, 'forage'); }
   goPerch(b, s) { const L = (s || b.site).perch, p = L[(R() * L.length) | 0]; if (!p) return; if (p.low) { this.flyTo(b, p.x, p.y, p.z, 'loaf'); b.dest.low = true; b.perchT = p; return; } const ox = rr(-0.25, 0.25), oz = rr(-0.25, 0.25), y = Math.max(this.nav.top(p.x + ox, p.z + oz), p.y - 0.4); this.flyTo(b, p.x + ox, y, p.z + oz, 'loaf'); b.perchT = p; }
+  lampAt(x, y, z) { const L = this.meta.lamps || [], h = y - this.nav.ground(x, z); if (h > 6.5) return 0; let best = 0; for (const l of L) { const rad = 5 + Math.min(7, Math.max(1.2, l[3])) * 2.2, d = Math.hypot(l[0] - x, l[2] - z); if (d < rad) { const k = 1 - d / rad; if (k > best) best = k; } } const t = Math.min(1, Math.max(0, (h - 0.5) / 6)); return best * best * (1 - t * t * (3 - 2 * t)); }
+  // ---- night. Each bird keeps its own hours: to the roost between about 17:00 and 17:45 (sunset in mid-October is near 17:20), out again between 5:48 and 6:18.
+  asleep(b, hour) { return hour < 5.8 + b.lag || hour >= 17.75 - b.lag * 1.5; }
+  // the roost is close to where the bird spends the day: a girder under a nearby bridge, or else a roof edge, a deck or a fence around its favourite site
+  roostOf(b) { if (b.home) return b.home; const s = b.fav || b.site, nav = this.nav, rs = this.roosts || [], used = this._rsUsed || (this._rsUsed = new Set()); let h = null;
+    // most birds sleep on a ledge that the street lamps reach: an eave, a deck rail or a fence top above head height, within 80 m of the site
+    if (b.i % 5 !== 0) { const C = s._lit || (s._lit = this.eaves.concat(this.decks, this.perches).filter(p => (p.x - s.x) ** 2 + (p.z - s.z) ** 2 < 6400 && p.y - nav.ground(p.x, p.z) > 1.8).map(p => (p.lit === undefined && (p.lit = this.lampAt(p.x, p.y + 0.06, p.z)), p)).filter(p => p.lit > 0.10).sort((p, q) => q.lit - p.lit));
+      for (const p of C) if (!p.taken) { p.taken = true; h = { x: p.x, y: p.y, z: p.z, lit: p.lit }; break; } }
+    if (!h && rs.length) { let bd = 170 * 170, bi = -1; for (let k = 0; k < rs.length; k++) { if (used.has(k)) continue; const d = (rs[k].x - s.x) ** 2 + (rs[k].z - s.z) ** 2; if (d < bd) { bd = d; bi = k; } } if (bi >= 0) { used.add(bi); h = rs[bi]; } }
+    if (!h) { const L = s._hi || (s._hi = s.perch.filter(p => !p.low)), M = L.length ? L : this.perches; let step = 37; while (M.length > 1 && M.length % step === 0) step += 2; s._rk = (s._rk || 0) + 1; const p = M[(s._rk * step) % M.length]; h = { x: p.x, y: p.y, z: p.z };
+      for (let k = 0; k < 6; k++) { const x = p.x + rr(-0.25, 0.25), z = p.z + rr(-0.25, 0.25), y = nav.top(x, z); if (y > p.y - 0.4 && y < p.y + 0.6) { h = { x, y, z }; break; } } }
+    if (h.lit === undefined) h.lit = this.lampAt(h.x, h.y + 0.06, h.z);
+    return (b.home = h); }
+  goRoost(b) { const h = this.roostOf(b); this.flyTo(b, h.x, h.y, h.z, 'roost'); if (h.low) b.dest.low = true; }
+  // put a bird where it belongs at this hour without a flight: asleep on its roost, or out on its site
+  place(b, roost) { b.air = false; b.vx = b.vy = b.vz = 0; b.v = 0; b.bank = 0; b.roll = 0; b.alarm = false; b.alarmIn = 0; b.dest = null; b.next = null; b.perchT = null; b.peck = 0; b.peckT = null; b.food = null; b.takeoff = undefined; b.landing = 0; b.landT = 0; b.glide = false; b.gait.init = false; b.head.ok = false; b.head.hold = null; b.t = 0; b.yaw = R() * TAU; b.callT = undefined; b.fold = 1; b.flapAmp = 0; b.tailSpread = 0.08;
+    for (const w of b.pose.wing) { w.fold = 1; w.flap = 0; w.twist = 0; w.sweep = 0; w.wrist = 0; }
+    if (roost) { const h = this.roostOf(b); b.x = h.x; b.y = h.y; b.z = h.z; b.st = 'roost'; b.sub = 'sleep'; b.perch = h; b.bodyH = 0.060; b.pitch = 0.22; b.puff = 1; return; }
+    const s = b.fav || b.site; b.site = s; b.puff = 0; b.bodyH = STAND_H; b.pitch = 0.46;
+    if (R() < 0.4 && s.perch.length) { const p = s.perch[(R() * s.perch.length) | 0]; b.x = p.x; b.y = p.y; b.z = p.z; b.st = 'loaf'; b.sub = 'rest'; b.subT = rr(1, 5); b.perch = p; b.hunger = rr(0.1, 0.45); }
+    else { const g = this._groundPoint(s, s.r); b.x = g.x; b.y = g.y; b.z = g.z; b.st = 'forage'; b.perch = null; b.hunger = rr(0.4, 0.9); b.nf = 0; b.pause = 0; } }
+  // the hour was set by hand (a button, the slider, the start of the visit): nobody watched the birds get there, so they are simply where they would be
+  retime(hour) { this.hour = hour; let n = 0; for (const b of this.B) { if (b.manual) continue; const sl = this.asleep(b, hour), ro = b.st === 'roost' || (b.st === 'fly' && b.next === 'roost'); if (sl && b.st !== 'roost') { this.place(b, true); n++; } else if (!sl && ro) { this.place(b, false); n++; } } return n; }
   scare(x, z, r, strong) { const wx = clamp(x + rr(-70, 70), -180, 280), wz = clamp(z + rr(-70, 70), -200, 160), wy = Math.max(this.nav.top(wx, wz), 6) + rr(14, 26); let n = 0;
     for (const q of this.B) { if (q.air || q.manual || q.alarmIn > 0) continue; const d = Math.hypot(q.x - x, q.z - z); if (d > r) continue; if (R() < 0.9) { q.alarmIn = rr(0.02, 0.25) + d * 0.03; q.aw = { x: wx + rr(-3, 3), y: wy + rr(-2, 2), z: wz + rr(-3, 3) }; n++; } }
     if (n >= 4) this.events.push({ t: 'flush', x, z, n }); return n; }
   think(b, dtT) {
-    const nav = this.nav, hour = this.hour, night = hour < 5.8 || hour > 17.7;
-    if (night) { if (b.st !== 'roost') { const rs = this.roosts, h = b.home || (b.home = (rs && rs.length && b.i % 5 < 3) ? rs[(b.i * 7) % rs.length] : this.perches[(b.i * 37) % this.perches.length]); this.flyTo(b, h.x, h.y, h.z, 'roost'); if (h.low) b.dest.low = true; } return; }
-    if (b.st === 'roost') { if (hour > 5.8 + b.lag) this.goForage(b, this.chooseSite(b)); return; }
+    const nav = this.nav, hour = this.hour, lapse = (this.app.timeScale || 0) >= 1500;   // at time-lapse speed a flight would last half the night: the birds change places between frames instead
+    if (this.asleep(b, hour)) { if (b.st !== 'roost') { if (lapse) this.place(b, true); else this.goRoost(b); } return; }
+    if (b.st === 'roost') { if (lapse) this.place(b, false); else this.goForage(b, this.chooseSite(b)); return; }
     for (const th of this.threats) { const d = Math.hypot(b.x - th.x, b.z - th.z); if (d < th.r && Math.abs(b.y - th.y) < 3) { if (!th.still && (th.run || d < th.r * 0.35)) { this.scare(b.x, b.z, 5.5); return; } b.wyaw = Math.atan2(b.x - th.x, b.z - th.z); b.wt = 1.2; b.evade = 0.9; b.food = null; b.pause = 0; } }
     if (b.st === 'court' || b.st === 'drink' || b.st === 'bathe') return;
     if (b.thirst > 0.8 && this.shore.length) { let w = null, wd = 1e9; for (let k = 0; k < 12; k++) { const s = this.shore[(R() * this.shore.length) | 0], d = Math.hypot(s.x - b.x, s.z - b.z); if (d < wd) { wd = d; w = s; } } this.flyTo(b, w.x, w.y, w.z, R() < 0.3 ? 'bathe' : 'drink'); return; }
@@ -126,16 +149,18 @@ export class Flock {
     b.x += b.vx * dt; b.y += b.vy * dt; b.z += b.vz * dt; const fl = nav.solidTop(b.x, b.z); if (b.y < fl + 0.02) { b.y = fl + 0.02; if (b.vy < 0) b.vy = 0; }
     const nyaw = Math.atan2(b.vx, b.vz), turn = angDiff(b.yaw, nyaw); b.yaw = dampAng(b.yaw, nyaw, 10, dt); b.bank = damp(b.bank, clamp(turn / Math.max(dt, 1e-3) * 0.12, -0.9, 0.9), 5, dt); b.speed = Math.hypot(b.vx, b.vy, b.vz);
     b.landing = dH < 6 ? 1 - dH / 6 : 0;
-    if ((dH < 0.3 && Math.abs(ty) < 0.5) || b.t > 160) this.land(b);
+    if (dH < 1.5) b.nearT = (b.nearT || 0) + dt;   // a bird that circles a spot it cannot quite reach sets down after a few seconds
+    if ((dH < 0.3 && Math.abs(ty) < 0.5) || b.t > 75 || b.nearT > 4) this.land(b);
   }
   land(b) {
-    const d = b.dest; b.x = d.x; b.z = d.z; b.y = d.y;
-    if (b.next === 'return') { const s = b.site; if (R() < 0.35) this.goPerch(b, s); else { const g = this._groundPoint(s, 6); this.flyTo(b, g.x, g.y, g.z, 'forage'); } return; }
+    const d = b.dest;
+    if (b.next === 'return') { if (this.asleep(b, this.hour)) { this.goRoost(b); return; } const s = b.site; if (R() < 0.35) this.goPerch(b, s); else { const g = this._groundPoint(s, 6); this.flyTo(b, g.x, g.y, g.z, 'forage'); } return; }
+    b.x = d.x; b.z = d.z; b.y = d.y;
     b.air = false; b.vx = b.vy = b.vz = 0; b.v = 0; b.bank = 0; b.st = b.next; b.t = 0; b.sub = 'rest'; b.subT = rr(2, 6); b.landT = 0.5; b.nf = 0; b.alarm = false; b.gait.init = false; b.head.hold = null; if (b.perchT) { b.perch = b.perchT; b.perchT = null; } this.events.push({ t: 'land', b });
   }
   // ---------------------------------------------------------------- main update
   update(dt, hour) {
-    this.t += dt; this.hour = hour; const dh = dt * (this.app.timeScale || 0) / 3600 + dt / 3600 * 60, peak = (hour > 6.0 && hour < 9.0) || (hour > 14.6 && hour < 17.2) ? 2.3 : 0.62;
+    this.t += dt; this.hour = hour; const dh = dt * Math.min(this.app.timeScale || 0, 600) / 3600 + dt / 3600 * 60 /* appetite keeps to a pace that can be watched, also in time lapse */, peak = (hour > 6.0 && hour < 9.0) || (hour > 14.6 && hour < 17.2) ? 2.3 : 0.62;
     this.fT = (this.fT || 0) - dt; if (this.fT <= 0) { this.fT = 0.3; const s = this.sites[(R() * this.sites.length) | 0]; if (s) this._crumb(s); }
     for (const b of this.B) {
       b.hunger = Math.min(1, b.hunger + dh * 0.12 * peak); b.thirst = Math.min(1, b.thirst + dh * 0.035); b.cd -= dt;
@@ -154,7 +179,7 @@ export class Flock {
     const walking = !b.air && b.v > 0.03;
     if (b.air) {
       const slow = Math.max(b.landing || 0, b.takeoff !== undefined && b.takeoff < 0.7 ? 1 - b.takeoff / 0.7 : 0); if (b.takeoff !== undefined) b.takeoff += dt;
-      wingMode = 'flap'; tFold = 0; tPitch = lerp(0.10, 0.85, slow) + clamp(b.vy * 0.05, -0.25, 0.3); tRoll = b.bank; tTailS = lerp(0.12, 1.0, slow); tTailP = lerp(0.0, -0.45, slow); hOff = [0, lerp(0.040, 0.085, slow), lerp(0.152, 0.10, slow)]; hp = lerp(-0.05, -0.3, slow); lookFree = false; legMode = (b.landing || 0) > 0.35 ? 'reach' : (b.takeoff !== undefined && b.takeoff < 0.35 ? 'trail' : 'tuck'); b.slow = slow; tH = STAND_H;
+      wingMode = 'flap'; tFold = 0; tPitch = lerp(0.10, 0.85, slow) + clamp(b.vy * 0.05, -0.25, 0.3); tRoll = b.bank; tTailS = lerp(0.22, 1.0, slow); tTailP = lerp(0.0, -0.45, slow); hOff = [0, lerp(0.040, 0.085, slow), lerp(0.152, 0.10, slow)]; hp = lerp(-0.05, -0.3, slow); lookFree = false; legMode = (b.landing || 0) > 0.35 ? 'reach' : (b.takeoff !== undefined && b.takeoff < 0.35 ? 'trail' : 'tuck'); b.slow = slow; tH = STAND_H;
     } else {
       b.takeoff = undefined; b.landing = 0;
       if (walking) { tPitch = 0.36; hOff = [0, 0.100, 0.078]; hp = -0.22; }
@@ -173,6 +198,7 @@ export class Flock {
     if (b.st === 'drink') { const t = b.t; peckK = t < 0.4 ? smooth(0, 0.4, t) : (t < 3.6 ? 1 : 1 - smooth(3.6, 4.2, t)); if (!b.peckT) b.peckT = { x: b.x + sy * 0.10, y: nav.waterY(b.x + sy * 0.12, b.z + cy * 0.12) > -300 ? Math.max(b.y, nav.waterY(b.x + sy * 0.12, b.z + cy * 0.12)) : b.y, z: b.z + cy * 0.10 }; }
     if (peckK > 0) { tPitch = lerp(tPitch, -0.10, peckK); tH = lerp(tH, 0.094, peckK); tTailP = lerp(tTailP, 0.3, peckK); }
     // ---- smooth body parameters
+    b.sleek = damp(b.sleek || 0, b.air ? 1 - (b.slow || 0) : 0, 5, dt); p.sleek = b.sleek * (1 - Math.min(1, b.fold * 3));   // drawn in for flight, back to the round standing shape as the wings fold
     const kb = b.air ? 7 : 11; b.bodyH = damp(b.bodyH, tH, kb, dt); b.pitch = damp(b.pitch, tPitch, kb, dt); b.roll = damp(b.roll, tRoll, 6, dt); b.fold = damp(b.fold, tFold, b.air ? 14 : 9, dt); b.tailSpread = damp(b.tailSpread, tTailS, 8, dt); b.tailPitch = damp(b.tailPitch, tTailP, 8, dt); b.puff = damp(b.puff, tPuff, 2.5, dt); b.neckPuff = damp(b.neckPuff, tNeck, 4, dt);
     // ---- gait: planted feet, alternate steps
     const rx = cy, rz = -sy; // bird's left vector in world (x = left)
@@ -226,7 +252,7 @@ export class Flock {
     b.legOut = damp(b.legOut, legMode === 'reach' ? 1 : (legMode === 'trail' ? 0.5 : 0), 9, dt);
     for (let s = 0; s < 2; s++) { const L = p.leg[s], sx = s === 0 ? 1 : -1;
       if (b.air) { const k = b.legOut, pc = Math.cos(p.pitch), ps = Math.sin(p.pitch); // tucked (body frame) -> reach forward/down for landing
-        const ty = lerp(-0.040, -0.074, k), tz = lerp(-0.046, 0.022, k), bx = sx * lerp(0.020, 0.026, k); L.x = bx; L.y = ty * pc + tz * ps; L.z = -ty * ps + tz * pc; if (k > 0.75) { L.y = lerp(L.y, -0.108, (k - 0.75) * 4); L.z = lerp(L.z, 0.02, (k - 0.75) * 4); } L.curl = lerp(1.1, -0.25, k); }
+        const ty = lerp(-0.023, -0.074, k), tz = lerp(-0.060, 0.022, k), bx = sx * lerp(0.015, 0.026, k); /* tucked: the feet lie in the belly feathers under the tail, only the toes show */ L.x = bx; L.y = ty * pc + tz * ps; L.z = -ty * ps + tz * pc; if (k > 0.75) { L.y = lerp(L.y, -0.108, (k - 0.75) * 4); L.z = lerp(L.z, 0.02, (k - 0.75) * 4); } L.curl = lerp(1.5, -0.25, k); }
       else { const f = s === 0 ? g.L : g.R, m = toModel(f.x, f.y + 0.0045, f.z, this._fm || (this._fm = [0, 0, 0])); L.x = m[0]; L.y = m[1]; L.z = m[2]; const sw = (walking && g.side === s) ? g.lift : 0; L.curl = sw * 0.5; if (b.st === 'loaf' && (b.sub === 'sleep' || b.sub === 'sun') || b.st === 'bathe') { L.y = Math.max(L.y, -b.bodyH + 0.004); } }
       L.yaw = 0; }
   }

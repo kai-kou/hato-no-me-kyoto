@@ -28,7 +28,7 @@ class Acc {
 // ------------------------------------------------------------------ leaves
 const LEAF_V = `attribute vec2 aLuv; attribute vec3 aPar; varying vec2 vLuv; flat varying vec3 vPar; varying vec3 vWPos; uniform float uTime; uniform vec2 uWind;`;
 const LEAF_VB = `{ float sw = aPar.z; float ph = uTime * 1.5 + position.x * 0.7 + position.z * 0.55 + aPar.x * 6.0; transformed.xz += uWind * (sin(ph) * 0.6 + sin(ph * 2.7 + 1.3) * 0.25 + 0.3) * sw * 0.085; transformed.y += sin(ph * 1.9) * sw * 0.014; vLuv = aLuv; vPar = aPar; }`;
-const LEAF_F = `varying vec2 vLuv; flat varying vec3 vPar; varying vec3 vWPos; uniform vec3 uSunDir, uSunCol; uniform float uSunI;
+const LEAF_F = `varying vec2 vLuv; flat varying vec3 vPar; varying vec3 vWPos; uniform vec3 uSunDir, uSunCol; uniform float uSunI; uniform float uNight; uniform sampler2D uLampTex; uniform vec4 uLampRect; uniform vec3 uLampCol;
 ${GLSL_NOISE}
 float leafMask(vec2 uv, float seed, float kind, out float tone){
   float nx = kind > 2.5 ? 4.0 : (kind > 0.5 && kind < 1.5 ? 5.0 : 3.0), ny = kind > 2.5 ? 4.0 : (kind > 0.5 && kind < 1.5 ? 2.0 : 3.0);
@@ -42,10 +42,11 @@ float leafMask(vec2 uv, float seed, float kind, out float tone){
   return mix(m, step(kind > 2.5 ? 0.25 : 0.55, h21(floor(uv * 2.0) + seed * 5.0)), lod);
 }`;
 const LEAF_FA = `{ float tone; float m = leafMask(vLuv, vPar.x, vPar.y, tone); if (m < 0.5) discard; vec3 lc = vColor.rgb * (0.72 + 0.56 * tone); lc = mix(lc, lc.grb * vec3(0.9, 1.0, 0.6), step(0.86, tone) * 0.35); diffuseColor.rgb = lc * mix(0.42, 1.0, vColor.a); }`;
-const LEAF_FE = `{ vec3 vd = normalize(vWPos - cameraPosition); totalEmissiveRadiance += diffuseColor.rgb * uSunCol * uSunI * 0.16 * ss(-0.1, 0.8, dot(vd, uSunDir)); }`;
+const LEAF_FE = `{ vec3 vd = normalize(vWPos - cameraPosition); totalEmissiveRadiance += diffuseColor.rgb * uSunCol * uSunI * 0.16 * ss(-0.1, 0.8, dot(vd, uSunDir)); }
+  { vec4 lt = texture2D(uLampTex, (vWPos.xz - uLampRect.xy) * uLampRect.zw); totalEmissiveRadiance += diffuseColor.rgb * uLampCol * (lt.r * lt.r) * (1.0 - ss(0.5, 5.0, vWPos.y - (lt.g * 16.0 - 8.0))) * uNight * 0.5; }`;   // the street lamps reach the fallen leaves and the lower branches as they reach the paving
 
 function leafMaterials(Q) {
-  const uni = { uTime: U.uTime, uWind: { value: new THREE.Vector2(0.8, 0.35) }, uSunDir: U.uSunDir, uSunCol: U.uSunCol, uSunI: { value: 1 } };
+  const uni = { uTime: U.uTime, uWind: { value: new THREE.Vector2(0.8, 0.35) }, uSunDir: U.uSunDir, uSunCol: U.uSunCol, uSunI: { value: 1 }, uNight: U.uNight, uLampTex: U.uLampTex, uLampRect: U.uLampRect, uLampCol: U.uLampCol };
   const mat = patchMaterial(new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide }), { key: 'leaf', vPars: LEAF_V, vBegin: LEAF_VB, vEnd: `vWPos = (modelMatrix * vec4(transformed, 1.0)).xyz;`, fPars: LEAF_F, fAlbedo: LEAF_FA, fEmissive: LEAF_FE, fFinal: `gl_FragColor.a = vViewPosition.z;` }, uni);
   const dep = patchMaterial(new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking, side: THREE.DoubleSide }), { key: 'leafD', vPars: LEAF_V, vBegin: LEAF_VB, fPars: LEAF_F, fMap: `{ float tone; if (leafMask(vLuv, vPar.x, vPar.y, tone) < 0.5) discard; }` }, uni);
   return { mat, dep, uni };
@@ -113,14 +114,14 @@ function makeBridge(B, world, conc, deckAcc, rail, roosts, out) {
 export function buildScenery(app) {
   const { scene, world, Q } = app, nav = world.nav, meta = world.meta, rnd = rng(20261112), rr = (a, b) => a + (b - a) * rnd();
   const lm = leafMaterials(Q), bark = new Acc(false), groups = [new Acc(true), new Acc(true), new Acc(true)], gi = x => x < -40 ? 0 : x < 40 ? 1 : 2, dens = Q.leaf ?? 1;
-  let nT = 0;
+  let nT = 0; const crowns = [];   // [x, y of the foot, z, height, crown radius] of every tree, for the camera's line-of-sight test
   // PLATEAU vegetation (LOD3 zone)
   for (const t of meta.trees || []) { const [x, y, z, h, r] = t, H = clamp(h, 1.4, 14), Rc = clamp(r || H * 0.42, 0.6, 5.5); const east = x > 40, q = rnd();
     const sp = H < 3.2 ? (q < 0.6 ? 'ever' : 'maple') : east ? (q < 0.55 ? 'cherry' : q < 0.85 ? 'willow' : 'maple') : (q < 0.45 ? 'maple' : q < 0.8 ? 'cherry' : 'ever');
-    makeTree(bark, groups[gi(x)], x, nav.ground(x, z) > y - 1.5 ? Math.min(y, nav.ground(x, z)) : y, z, H, Rc, sp, rnd, dens, nav); nT++; }
+    const fy = nav.ground(x, z) > y - 1.5 ? Math.min(y, nav.ground(x, z)) : y; makeTree(bark, groups[gi(x)], x, fy, z, H, Rc, sp, rnd, dens, nav); crowns.push([x, fy, z, H, Rc]); nT++; }
   // Kamo east bank: the row of cherry trees along Kawabata-dori (crowns visible in the aerial photo)
   for (let z = -214; z < 132; z += rr(8.5, 11.5)) { const road = nav.ground(2, z); let xe = null; for (let x = -32; x < -2; x += 0.5) if (nav.ground(x, z) >= road - 0.7 && nav.cls(x, z) === 0) { xe = x; break; } if (xe === null) continue; const x = xe + rr(0.6, 1.6); if (nav.cls(x, z) !== 0 || nav.furn(x, z) > -900) continue;
-    makeTree(bark, groups[1], x, nav.ground(x, z), z, rr(6.2, 8.6), rr(2.9, 3.9), rnd() < 0.85 ? 'cherry' : 'willow', rnd, dens, nav); nT++; }
+    const tH = rr(6.2, 8.6), tR = rr(2.9, 3.9); makeTree(bark, groups[1], x, nav.ground(x, z), z, tH, tR, rnd() < 0.85 ? 'cherry' : 'willow', rnd, dens, nav); crowns.push([x, nav.ground(x, z), z, tH, tR]); nT++; }
   const barkMat = cityMaterial('frnp', Q, { rough: 0.95, uniforms: { uTint: { value: new THREE.Color(0.115, 0.09, 0.07) }, uGrain: { value: 0.7 } } });
   const bm = new THREE.Mesh(bark.geometry(), barkMat); bm.castShadow = true; bm.receiveShadow = true; bm.matrixAutoUpdate = false; scene.add(bm);
   const leafMeshes = []; for (const g of groups) { if (!g.nv) continue; const m = new THREE.Mesh(g.geometry(), lm.mat); m.customDepthMaterial = lm.dep; m.castShadow = Q.tier !== 'low'; m.receiveShadow = true; m.matrixAutoUpdate = false; scene.add(m); leafMeshes.push(m); }
@@ -137,5 +138,5 @@ export function buildScenery(app) {
   const concMat = cityMaterial('frnp', Q, { rough: 0.9, uniforms: { uTint: { value: new THREE.Color(0.40, 0.385, 0.36) }, uGrain: { value: 0.32 } } }), railMat = cityMaterial('frnp', Q, { rough: 0.55, uniforms: { uTint: { value: new THREE.Color(0.13, 0.22, 0.19) }, uGrain: { value: 0.25 } } });
   const add = (acc, mat, cast = true) => { if (!acc.nv) return null; const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(acc.p, 3)); g.setAttribute('normal', new THREE.Float32BufferAttribute(acc.n, 3)); if (acc.c.length) g.setAttribute('color', new THREE.Float32BufferAttribute(acc.c, 4)); if (acc.uv) g.setAttribute('uv', new THREE.Float32BufferAttribute(acc.uv, 2)); g.setIndex(acc.i); g.computeBoundingSphere(); const m = new THREE.Mesh(g, mat); m.castShadow = cast; m.receiveShadow = true; m.matrixAutoUpdate = false; scene.add(m); return m; };
   add(conc, concMat); add(rail, railMat); if (world.terrain) add(deckCore, world.terrain.material, true); if (world.terrainCtx) add(deckCtx, world.terrainCtx.material, true);
-  return { roosts, nTrees: nT, deckY: ext.deckY || null, update(dt, camera) { lm.uni.uSunI.value = world.env.sunI; const t = U.uTime.value, g = 0.75 + 0.35 * Math.sin(t * 0.21) + 0.2 * Math.sin(t * 0.53 + 1.7); lm.uni.uWind.value.set(0.85 * g, 0.4 * g); } };
+  return { roosts, crowns, nTrees: nT, deckY: ext.deckY || null, update(dt, camera) { lm.uni.uSunI.value = world.env.sunI; const t = U.uTime.value, g = 0.75 + 0.35 * Math.sin(t * 0.21) + 0.2 * Math.sin(t * 0.53 + 1.7); lm.uni.uWind.value.set(0.85 * g, 0.4 * g); } };
 }
