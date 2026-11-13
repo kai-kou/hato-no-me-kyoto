@@ -1,0 +1,25 @@
+{
+  "name": "hato-no-me-kyoto-pipeline",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Turns PLATEAU 3D Tiles and GSI tiles into the runtime assets of \"Hato no Me, Kyoto\".",
+  "scripts": {
+    "extract": "node extract.mjs",
+    "terrain": "node terrain.mjs",
+    "raster": "node raster.mjs",
+    "atlas": "node atlas.mjs bldg3 && node atlas.mjs bldg2 && node atlas.mjs frn",
+    "ground": "node ground.mjs",
+    "export": "node export.mjs && node pack.mjs",
+    "all": "npm run extract && npm run terrain && npm run raster && npm run atlas && npm run ground && npm run export"
+  },
+  "dependencies": {
+    "@gltf-transform/core": "^4.5.1",
+    "@gltf-transform/extensions": "^4.5.1",
+    "@gltf-transform/functions": "^4.5.1",
+    "draco3dgltf": "^1.5.9",
+    "earcut": "^3.2.4",
+    "meshoptimizer": "^1.3.0",
+    "sharp": "^0.35.5",
+    "three": "^0.170.0"
+  }
+}

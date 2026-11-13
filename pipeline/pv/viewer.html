@@ -1,0 +1,16 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><style>html,body{margin:0;background:#000;overflow:hidden}canvas{display:block}#i{position:fixed;left:6px;top:6px;color:#fff;font:12px monospace;background:#0008;padding:2px 6px}</style>
+<script type="importmap">{"imports":{"three":"/node_modules/three/build/three.module.js","three/addons/":"/node_modules/three/examples/jsm/"}}</script></head><body><div id="i"></div>
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+const q=new URLSearchParams(location.search), r=new THREE.WebGLRenderer({antialias:true,preserveDrawingBuffer:true}); r.setSize(innerWidth,innerHeight); document.body.appendChild(r.domElement);
+r.toneMapping=THREE.ACESFilmicToneMapping; r.toneMappingExposure=1.0;
+const s=new THREE.Scene(); s.background=new THREE.Color(0x9cc3e6);
+s.add(new THREE.HemisphereLight(0xdde9ff,0x8a8474,1.6)); const d=new THREE.DirectionalLight(0xfff2dd,2.2); d.position.set(-300,400,200); s.add(d);
+const cam=new THREE.PerspectiveCamera(+(q.get('fov')||55),innerWidth/innerHeight,0.05,6000);
+const files=(q.get('f')||'').split(','); let n=0; window.__ready=false; window.__info={};
+for(const f of files){ new GLTFLoader().load(f,g=>{ s.add(g.scene); g.scene.traverse(o=>{ if(o.isMesh){ o.material.side=THREE.DoubleSide; if(o.material.map){o.material.map.anisotropy=8;} } });
+  const bb=new THREE.Box3().setFromObject(g.scene); window.__info[f]={min:bb.min.toArray().map(v=>+v.toFixed(1)),max:bb.max.toArray().map(v=>+v.toFixed(1))}; if(++n===files.length) window.__loaded=true; }); }
+const gp=new THREE.Mesh(new THREE.PlaneGeometry(3000,3000),new THREE.MeshLambertMaterial({color:0x777a7d})); gp.rotation.x=-Math.PI/2; gp.position.y=+(q.get("gy")||0); s.add(gp);
+window.shot=(p,t)=>{ cam.position.set(...p); cam.lookAt(...t); r.render(s,cam); document.getElementById('i').textContent=JSON.stringify(p)+' -> '+JSON.stringify(t); };
+</script></body></html>
