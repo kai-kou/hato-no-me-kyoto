@@ -29,7 +29,7 @@ export const ETHO = {
   drink: ['水飲み', '嘴を水につけたまま吸い上げて飲む。上を向かずに飲めるのはハトの仲間の特徴。'],
   bathe: ['水浴び', '浅瀬に伏せて翼を震わせ、羽毛の汚れを落とす。終わると高い場所で乾かす。'],
   flush: ['一斉飛翔', '1羽の急な飛び立ちが群れ全体に伝わり、ほぼ同時に舞い上がる。旋回して元の場所へ戻ることが多い。'],
-  roost: ['ねぐら', '日没前後に軒下や橋桁などのねぐらへ戻り、朝まで動かない。'],
+  roost: ['ねぐら', '日没前後に軒下や橋桁などのねぐらへ戻り、朝まで動かない。この作品では夜の画面で見えるように、街灯の届く場所に寄せてある。'],
 };
 const ETHO_KEYS = Object.keys(ETHO);
 const MODES = ['eye', 'chase', 'tele', 'over', 'cine'];
@@ -298,7 +298,10 @@ export async function start(app) {
   // what this device is actually doing, shown at the bottom of the info sheet (handy when reporting how it runs on a phone)
   const diag = () => { const d = $('diag'); if (!d) return; let gpu = ''; try { const gl = renderer.getContext(), r0 = String(gl.getParameter(gl.RENDERER)), e = /^(WebKit )?WebGL$|^Mozilla$/.test(r0) ? gl.getExtension('WEBGL_debug_renderer_info') : null; gpu = String(e ? gl.getParameter(e.UNMASKED_RENDERER_WEBGL) : r0).slice(0, 80); } catch (err) { }
     const ms = S.ms || 0; d.textContent = `この端末での動作：画質「${{ high: '高', mid: '中', low: '軽' }[Q.tier] || Q.tier}」／${ms ? `1コマ平均 ${ms.toFixed(1)} ms（約 ${Math.round(1000 / ms)} fps）` : '速度は計測中'}／内部解像度 ${Math.round(Q.scale * app.drs * 100)}%${S.lite ? '・軽量化中' : ''}／起動 ${app.boot && app.boot.shown ? `${(app.boot.shown / 1000).toFixed(1)} 秒（取得 ${((app.boot.fetched || 0) / 1000).toFixed(1)}・組み立て ${(((app.boot.ready || 0) - (app.boot.fetched || 0)) / 1000).toFixed(1)}・最初の1コマ ${((app.boot.shown - (app.boot.ready || 0)) / 1000).toFixed(1)}）` : '計測なし'}／音：${snd.ctx ? ({ running: '再生中', suspended: '停止中', closed: '終了' }[snd.ctx.state] || snd.ctx.state) : '未開始'}${snd.muted ? '（消音）' : snd.ctx ? `・出力 ${snd.level().toFixed(0)} dB` : ''}／${gpu}`; };
-  on('btnInfo', () => { diag(); $('info').classList.add('on'); }); on('infoClose', () => $('info').classList.remove('on')); on('btnEtho', () => { ui.etho(); $('ethoPanel').classList.add('on'); }); on('ethoClose', () => $('ethoPanel').classList.remove('on'));
+  on('btnInfo', () => { diag(); $('info').classList.add('on'); }); on('infoClose', () => $('info').classList.remove('on')); // the sheets also close with Esc and with a press outside the panel
+  for (const id of ['ethoPanel', 'info']) { const el = $(id); if (el) el.addEventListener('pointerdown', e => { if (e.target === el) el.classList.remove('on'); }); }
+  addEventListener('keydown', e => { if (e.key === 'Escape') for (const el of document.querySelectorAll('.modal.on')) el.classList.remove('on'); });
+  on('btnEtho', () => { ui.etho(); $('ethoPanel').classList.add('on'); }); on('ethoClose', () => $('ethoPanel').classList.remove('on'));
   on('btnTime', () => $('timePanel').classList.toggle('on'));
   on('btnWet', () => { S.wet = S.wet > 0.5 ? 0 : 1; $('btnWet').classList.toggle('on', S.wet > 0.5); toast(S.wet > 0.5 ? '雨上がり' : '晴れ'); });
   // the hour set by hand is a cut, not a wait: the flock is placed where it would be (asleep on the roosts at night), and the camera follows the bird it was watching

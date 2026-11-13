@@ -124,11 +124,19 @@ try:
             ok('panorama: click on a pigeon changes the watched bird', False, 'no pigeon stands clear in the panorama')
         frames(3)
         g = T('t.ground(t.pano)')
+        for _ in range(5):   # the feed thrown by the earlier steps draws the flock around the camera; wait for a gap
+            if g: break
+            frames(6); g = T('t.ground(t.pano)')
         c0 = T('t.counts()')
         if g:
             n0 = T('t.near(%f, %f)' % (g['wx'], g['wz']))
             pg.mouse.click(g['x'], g['y'])
             n1 = T('t.near(%f, %f)' % (g['wx'], g['wz']))
+            for _ in range(4):   # a point behind a deck or an eave is refused, rightly: pick again after the bird has moved on
+                if n1 >= n0 + 15 or '建物にはまけない' not in T('t.toast()'): break
+                frames(8); g2 = T('t.ground(t.pano)')
+                if not g2: continue
+                g = g2; n0 = T('t.near(%f, %f)' % (g['wx'], g['wz'])); pg.mouse.click(g['x'], g['y']); n1 = T('t.near(%f, %f)' % (g['wx'], g['wz']))
             ok('panorama: click on the ground scatters feed there', n1 >= n0 + 15, 'crumbs within 1.6 m: %d -> %d, toast "%s"' % (n0, n1, T('t.toast()')))
         else:
             ok('panorama: click on the ground scatters feed there', False, 'no clear ground in the panorama')
