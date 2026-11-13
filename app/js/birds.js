@@ -86,7 +86,9 @@ vec3 birdAlbedo(vec3 N, vec3 Vv){
     else { col = wingc * 0.92; if (typ < 1.5) col = mix(col, vec3(0.05), ss(0.6, 0.68, u) * (1.0 - ss(0.86, 0.92, u)) * 0.9); if (typ > 1.5) col = mix(dark, wingc, 0.3); }
     col *= 0.93 + 0.07 * sin((u * 46.0 + abs(v) * 10.0) * 6.2832); col = mix(col, col * 1.5 + 0.02, (1.0 - ss(0.0, 0.09, abs(v))) * 0.5); bRough = 0.5; bBump = 0.5 * sin((u * 46.0 + abs(v) * 10.0) * 6.2832) + (1.0 - ss(0.0, 0.09, abs(v))) * 1.2;
   } else if (reg < 8.5) { float u = uvp.x; col = body * 0.78; col = mix(col, vec3(0.055, 0.055, 0.06), ss(0.66, 0.72, u) * (1.0 - ss(0.90, 0.94, u)) * 0.95); col = mix(col, body * 0.95, ss(0.93, 0.97, u)); if (typ > 2.5) col = vec3(0.05); if (vPat.w < 0.05 || vPat.w > 0.95) col = mix(col, vec3(0.8), (1.0 - ss(0.3, 0.6, u)) * ss(0.2, 0.9, -uvp.y * sign(vPat.w - 0.5)) * 0.6);
-    col *= 0.94 + 0.06 * sin((u * 40.0 + abs(uvp.y) * 9.0) * 6.2832); bRough = 0.5;
+    float tv = abs(uvp.y), barb = sin((u * 40.0 + tv * 9.0) * 6.2832); col *= 0.94 + 0.06 * barb;
+    col *= 1.0 - 0.24 * ss(0.60, 1.0, tv); col = mix(col, col * 1.45 + 0.015, (1.0 - ss(0.0, 0.07, tv)) * 0.45); // each vane darkens toward its edge and carries a pale shaft, so the twelve feathers read as feathers and not as one plate
+    bRough = 0.5; bBump = 0.35 * barb + (1.0 - ss(0.0, 0.08, tv)) * 1.0 - 0.6 * ss(0.7, 1.0, tv);
   } else if (reg < 9.5) { col = vec3(0.62, 0.17, 0.16) * (0.82 + 0.18 * sin(uvp.x * 160.0)); bRough = 0.45;
   } else if (reg < 10.5) { col = vec3(0.09, 0.08, 0.075); bRough = 0.35;
   } else { // folded wing shield: u front -> rear, v top -> bottom

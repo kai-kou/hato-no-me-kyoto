@@ -109,11 +109,12 @@ export function buildPigeonGeometry() {
         const k = sm(0.60, 1.0, a), tx = 0.022 - 0.014 * a + 0.005 * (1 - h), ty = 0.022 - 0.018 * h - 0.006 * a; x = x + (tx - x) * k; y = y + (ty - y) * k;
         row.push(vtx(V(x * sx, y, z), sk(0), NOF, [a, h, 11, 0])); } grid.push(row); }
     for (let i = 0; i < NA; i++) for (let j = 0; j < NH; j++) { const a = grid[i][j], b = grid[i + 1][j], c = grid[i + 1][j + 1], d = grid[i][j + 1]; if (sx > 0) quad(a, d, c, b); else quad(a, b, c, d); } }
-  // ---- tail: 12 rectrices fanning about the tail pivot
-  { const Tb = RIG.tail; for (let i = 0; i < 12; i++) { const k = (i - 5.5) / 5.5, a0 = k * 0.07, root = V(Tb.x + k * 0.012, Tb.y - Math.abs(k) * 0.004, Tb.z + 0.012), dir = V(Math.sin(a0), 0, -Math.cos(a0)), L = 0.118 - Math.abs(k) * 0.008, n = 4, perp = V(dir.z, 0, -dir.x), ids = [], fea = [Tb.x, Tb.z + 0.02, k * 0.62];
-      for (let s = 0; s <= n; s++) { const t = s / n, w = 0.0135 * (0.55 + 0.45 * Math.min(1, t * 3)) * (t > 0.86 ? Math.sqrt(Math.max(0.05, 1 - ((t - 0.86) / 0.14) ** 2)) : 1), c = root.clone().addScaledVector(dir, L * t); c.y += -0.004 * t * t - Math.abs(k) * 0.0012;
+  // ---- tail: 12 rectrices fanning about the tail pivot. The middle pair lies on top and each feather outward sits a little lower, so the closed tail is arched; every tip is rounded on its own.
+  { const Tb = RIG.tail, TS = [0, 0.28, 0.55, 0.76, 0.88, 0.95, 0.985, 1];
+    for (let i = 0; i < 12; i++) { const k = (i - 5.5) / 5.5, a0 = k * 0.07, root = V(Tb.x + k * 0.012, Tb.y - Math.abs(k) * 0.004, Tb.z + 0.012), dir = V(Math.sin(a0), 0, -Math.cos(a0)), L = 0.118 - Math.abs(k) * 0.010, perp = V(dir.z, 0, -dir.x), ids = [], fea = [Tb.x, Tb.z + 0.02, k * 0.62];
+      for (const t of TS) { const w = 0.0125 * (0.55 + 0.45 * Math.min(1, t * 3)) * (t > 0.76 ? Math.sqrt(Math.max(0, 1 - ((t - 0.76) / 0.24) ** 2)) : 1), c = root.clone().addScaledVector(dir, L * t); c.y += -0.004 * t * t - Math.abs(k) * 0.0012 - k * k * 0.0045 * (0.4 + 0.6 * t) + (i - 5.5) * 0.00012;
         ids.push([vtx(c.clone().addScaledVector(perp, w), sk(BONE.tail), fea, [t, -1, 8, i / 11]), vtx(c.clone().addScaledVector(perp, -w), sk(BONE.tail), fea, [t, 1, 8, i / 11])]); }
-      for (let s = 0; s < n; s++) quad(ids[s][0], ids[s][1], ids[s + 1][1], ids[s + 1][0]); } }
+      for (let q = 0; q < TS.length - 1; q++) quad(ids[q][0], ids[q][1], ids[q + 1][1], ids[q + 1][0]); } }
   // ---- legs
   for (const sx of [1, -1]) { const bT = sx > 0 ? BONE.tibL : BONE.tibR, bA = sx > 0 ? BONE.tarL : BONE.tarR, bF = sx > 0 ? BONE.footL : BONE.footR; const hip = V(RIG.hip.x * sx, RIG.hip.y, RIG.hip.z), ank = V(hip.x, RIG.ankle.y, hip.z), ft = V(hip.x, RIG.foot.y, hip.z), D = V(0, -1, 0);
     loft([0, 0.3, 0.62, 1].map(t => ({ c: hip.clone().lerp(ank, t), ax: D, up: Z, rx: 0.016 * (1 - t) ** 1.6 + 0.0040, ryT: 0.020 * (1 - t) ** 1.6 + 0.0040, ryB: 0.020 * (1 - t) ** 1.6 + 0.0040, skin: sk(bT), u: t })), 8, 0, 0.6, true, true);
