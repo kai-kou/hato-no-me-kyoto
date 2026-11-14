@@ -430,7 +430,7 @@ export class World {
     const [meta, navPak] = await Promise.all([fetch(asset('d/meta.json')).then(r => r.json()), loadPak('d/nav.txt', P('nav', 3.0), 3024688)]);
     this.meta = meta; this.nav = new Nav(navPak); this.env = new Env(this.scene, Q);
     this.tex = new TexStream(this.r, meta.tex, Q);
-    const [corePak] = await Promise.all([loadPak('d/core.txt', P('core', 15.2), 15216300), this.tex.loadBase('t/b.txt', P('tex', 1.15), 1151052)]);
+    const [corePak] = await Promise.all([loadPak('d/core.txt', P('core', 15.6), 15216300), this.tex.loadBase('t/b.txt', P('tex', 1.15), 1151052)]);
     await stage('light', '街を組み立て中：街灯の明かり'); this._lampTex(); this._lampGlow();
     await stage('city', '街を組み立て中：建物と路地'); this._buildCity(corePak);
     await stage('ground', '街を組み立て中：地面'); this._buildTerrain();
