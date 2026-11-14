@@ -226,8 +226,9 @@ export class Flock {
     if (peckK > 0 && b.peckT) { const T = b.peckT; const bx = T.x - sy * 0.012, bz = T.z - cy * 0.012, by = T.y + 0.030; dHx = lerp(dHx, bx, peckK); dHy = lerp(dHy, by, peckK); dHz = lerp(dHz, bz, peckK); hp = lerp(hp, -1.42, peckK); lookFree = false; H.tyaw = 0; H.ttilt = 0; }
     if (!H.ok) { H.x = dHx; H.y = dHy; H.z = dHz; H.ok = true; }
     if (walking && peckK === 0 && b.v < 0.72) { // hold & thrust head-bob
-      if (g.ph < 0.60) { if (!H.hold) H.hold = { x: H.x, y: dHy, z: H.z }; H.x = damp(H.x, H.hold.x, 40, dt); H.z = damp(H.z, H.hold.z, 40, dt); H.y = damp(H.y, dHy, 20, dt); }
-      else { H.hold = null; const lead = 0.034, k = smooth(0.60, 1.0, g.ph), tx = dHx + sy * lead, tz = dHz + cy * lead; H.x = lerp(H.x, tx, clamp(k * 1.4 * dt * 34, 0, 1)); H.z = lerp(H.z, tz, clamp(k * 1.4 * dt * 34, 0, 1)); H.y = damp(H.y, dHy + 0.004, 20, dt); }
+      const hf = clamp(0.70 - 0.42 * b.v / 0.72, 0.28, 0.70);   // the share of each step during which the head is held still shrinks as the bird walks faster (Davies & Green 1988), until at about 0.75 m/s nothing is left of it
+      if (g.ph < hf) { if (!H.hold) H.hold = { x: H.x, y: dHy, z: H.z }; H.x = damp(H.x, H.hold.x, 40, dt); H.z = damp(H.z, H.hold.z, 40, dt); H.y = damp(H.y, dHy, 20, dt); }
+      else { H.hold = null; const lead = 0.034, k = smooth(hf, 1.0, g.ph), tx = dHx + sy * lead, tz = dHz + cy * lead; H.x = lerp(H.x, tx, clamp(k * 1.4 * dt * 34, 0, 1)); H.z = lerp(H.z, tz, clamp(k * 1.4 * dt * 34, 0, 1)); H.y = damp(H.y, dHy + 0.004, 20, dt); }
     } else { H.hold = null; const k = b.air ? 30 : (peckK > 0 ? 38 : 16); H.x = damp(H.x, dHx, k, dt); H.y = damp(H.y, dHy, k, dt); H.z = damp(H.z, dHz, k, dt); }
     const hm = toModel(H.x, H.y, H.z, this._hm || (this._hm = [0, 0, 0]));
     // keep the neck within its anatomical length

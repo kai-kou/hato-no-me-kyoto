@@ -22,20 +22,25 @@ export class Post {
           float fg = step(s.a, c0.a * 0.96); float w = smoothstep(rr - 1.0, rr + 1.0, mix(min(rs, r0), rs, fg)); nearK += w * fg; w *= 1.0 + dot(s.rgb, vec3(0.2)) * 0.5; acc += min(s.rgb, vec3(30.0)) * w; wsum += w; }
         gl_FragColor = vec4(acc / wsum, max(r0, nearK / float(TAPS - 1) * 9.0)); }`, { t: { value: null }, px: { value: new THREE.Vector2() }, focus: { value: 5 }, ap: { value: 0 }, maxR: { value: 14 } });
     this.mDof.defines = { TAPS: Q.dofTaps || 28 };
-    this.mFinal = M(`uniform sampler2D t, bloom, dof, uNoise; uniform vec2 px; uniform float expo, bloomK, dofOn, time, grain, vig, sat, aber; uniform vec3 tintLo, tintHi;
+    this.mFinal = M(`uniform sampler2D t, bloom, dof, uNoise; uniform vec2 px; uniform float expo, bloomK, dofOn, time, grain, vig, sat, aber, agxOn; uniform vec3 tintLo, tintHi;
       vec3 aces(vec3 x){ return clamp((x * (2.51 * x + 0.03)) / (x * (2.43 * x + 0.59) + 0.14), 0.0, 1.0); }
+      // AgX (Troy Sobotka), in the compact form by Benjamin Wrensch: the three channels are mixed before the curve, so a bright saturated light fades towards white instead of skewing its hue as a per-channel curve does
+      vec3 agx(vec3 c){ const mat3 mi = mat3(0.842479062253094, 0.0423282422610123, 0.0423756549057051, 0.0784335999999992, 0.878468636469772, 0.0784336, 0.0792237451477643, 0.0791661274605434, 0.879142973793104);
+        const mat3 mo = mat3(1.19687900512017, -0.0528968517574562, -0.0529716355144438, -0.0980208811401368, 1.15190312990417, -0.0980434501171241, -0.0990297440797205, -0.0989611768448433, 1.15107367264116);
+        c = mi * c; c = clamp((log2(max(c, vec3(1e-10))) + 12.47393) / 16.5, 0.0, 1.0); vec3 x2 = c * c, x4 = x2 * x2;
+        c = 15.5 * x4 * x2 - 40.14 * x4 * c + 31.96 * x4 - 6.868 * x2 * c + 0.4298 * x2 + 0.1191 * c - 0.00232;
+        float l = dot(c, vec3(0.2126, 0.7152, 0.0722)); c = pow(max(c, vec3(0.0)), vec3(1.35)); c = l + 1.4 * (c - l); return clamp(mo * c, 0.0, 1.0); }   // the 'punchy' look: power 1.35, saturation 1.4
       void main(){ vec2 uv = vUv; vec2 cc = uv - 0.5; vec4 s = texture2D(t, uv); vec3 c = s.rgb;
         if (aber > 0.0) { c.r = texture2D(t, uv + cc * aber).r; c.b = texture2D(t, uv - cc * aber).b; }
         if (dofOn > 0.5) { vec4 d = texture2D(dof, uv); c = mix(c, d.rgb, smoothstep(0.6, 2.6, d.a)); }
         c += texture2D(bloom, uv).rgb * bloomK; c *= expo;
         float l = dot(c, vec3(0.2126, 0.7152, 0.0722)); c = mix(vec3(l), c, sat);
-        c = aces(c * 0.82);
-        float l2 = dot(c, vec3(0.2126, 0.7152, 0.0722)); c *= mix(tintLo, tintHi, smoothstep(0.05, 0.75, l2));
-        c = pow(c, vec3(1.0 / 2.2));
-        c = mix(c, c * c * (3.0 - 2.0 * c), 0.22);
+        float l2;
+        if (agxOn > 0.5) { c = agx(c * 0.82); l2 = dot(pow(c, vec3(2.2)), vec3(0.2126, 0.7152, 0.0722)); c *= mix(tintLo, tintHi, smoothstep(0.05, 0.75, l2)); }
+        else { c = aces(c * 0.82); l2 = dot(c, vec3(0.2126, 0.7152, 0.0722)); c *= mix(tintLo, tintHi, smoothstep(0.05, 0.75, l2)); c = pow(c, vec3(1.0 / 2.2)); c = mix(c, c * c * (3.0 - 2.0 * c), 0.22); }
         c *= 1.0 - vig * smoothstep(0.35, 0.95, length(cc * vec2(1.0, 0.82)) * 1.35);
         float g = texture2D(uNoise, uv * vec2(3.1, 2.3) + fract(time * vec2(7.13, 3.71))).r - 0.5; c += g * grain * (1.0 - 0.6 * l2);
-        gl_FragColor = vec4(c, 1.0); }`, { t: { value: null }, bloom: { value: null }, dof: { value: null }, uNoise: U.uNoise, px: { value: new THREE.Vector2() }, expo: { value: 1 }, bloomK: { value: 0.5 }, dofOn: { value: 0 }, time: U.uTime, grain: { value: 0.035 }, vig: { value: 0.32 }, sat: { value: 1.08 }, aber: { value: 0.0012 }, tintLo: { value: new THREE.Color(0.97, 0.99, 1.03) }, tintHi: { value: new THREE.Color(1.03, 1.0, 0.96) } });
+        gl_FragColor = vec4(c, 1.0); }`, { t: { value: null }, bloom: { value: null }, dof: { value: null }, uNoise: U.uNoise, px: { value: new THREE.Vector2() }, expo: { value: 1 }, bloomK: { value: 0.5 }, dofOn: { value: 0 }, time: U.uTime, grain: { value: 0.035 }, vig: { value: 0.32 }, sat: { value: 1.08 }, aber: { value: 0.0012 }, agxOn: { value: new URLSearchParams(location.search).get('tm') === 'agx' ? 1 : 0 }, tintLo: { value: new THREE.Color(0.97, 0.99, 1.03) }, tintHi: { value: new THREE.Color(1.03, 1.0, 0.96) } });
     // panorama (pigeon lateral eyes): cube -> wide cylindrical projection
     this.mPano = M(`uniform samplerCube cube; uniform vec3 uF, uR, uUp; uniform float asp, hfov, vfov, binoc, rows;
       void main(){ float yaw, pit;

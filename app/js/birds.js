@@ -28,10 +28,31 @@ void birdSkin(inout vec3 p, inout vec3 n){
   p = p0; n = normalize(n0);
   if (uHideOn * P1.y > 0.5 && ((reg > 0.5 && reg < 2.5) || (reg > 3.5 && reg < 5.5))) p = vec3(0.0);
 }`;
+// ---- structural colour of the neck feathers
+// The green and the purple of a rock dove's neck are one mechanism: interference in the keratin cortex of the barbules, a single
+// thin layer over a poor mirror (Yin et al. 2006, Phys. Rev. E 74, 051916; Yoshioka, Nakamura & Kinoshita 2007, J. Phys. Soc. Jpn 76, 013801).
+// The layer is thick enough that several orders fall in the visible range at once, so a feather shows two colours and flips between
+// them over a small change of angle. Here the reflectance of such a layer is worked out per wavelength (Airy formula, n = 1.55),
+// weighted with the CIE 1931 observer (the analytic fit of Wyman, Sloan & Shirley 2013) and turned into linear sRGB, for 16
+// angles of incidence and two thicknesses: about 595 nm, green at normal incidence and purple when oblique, and about 500 nm, the reverse.
+function filmLUT(d) { const n = 1.55, R0 = ((n - 1) / (n + 1)) ** 2, out = [], g = (x, m, s1, s2) => Math.exp(-0.5 * ((x - m) * (x < m ? s1 : s2)) ** 2);
+  for (let k = 0; k < 16; k++) { const c = 0.1 + 0.9 * k / 15, st = Math.sqrt(1 - c * c) / n, ct = Math.sqrt(1 - st * st); let X = 0, Y = 0, Z = 0, Yn = 0;
+    for (let l = 380; l <= 730; l += 5) { const cd = Math.cos(4 * Math.PI * n * d * ct / l), R = 2 * R0 * (1 - cd) / (1 + R0 * R0 - 2 * R0 * cd);
+      const x = 1.056 * g(l, 599.8, 0.0264, 0.0323) + 0.362 * g(l, 442.0, 0.0624, 0.0374) - 0.065 * g(l, 501.1, 0.0490, 0.0382), y = 0.821 * g(l, 568.8, 0.0213, 0.0247) + 0.286 * g(l, 530.9, 0.0613, 0.0322), z = 1.217 * g(l, 437.0, 0.0845, 0.0278) + 0.681 * g(l, 459.0, 0.0385, 0.0725);
+      X += R * x; Y += R * y; Z += R * z; Yn += y; }
+    X /= Yn; Y /= Yn; Z /= Yn; out.push([Math.max(0, 3.2406 * X - 1.5372 * Y - 0.4986 * Z), Math.max(0, -0.9689 * X + 1.8758 * Y + 0.0415 * Z), Math.max(0, 0.0557 * X - 0.2040 * Y + 1.0570 * Z)]); }
+  return out; }
+const FILM_G = filmLUT(595), FILM_P = filmLUT(500), glv = a => 'vec3[16](' + a.map(v => `vec3(${v.map(x => x.toFixed(4)).join(', ')})`).join(', ') + ')';
+export const FILM = { G: FILM_G, P: FILM_P };
 const F_PARS = `
 varying vec4 vPat; flat varying vec4 vMA; flat varying vec4 vMB; varying vec3 vWPos; uniform float uNight; uniform sampler2D uLampTex; uniform vec4 uLampRect; uniform vec3 uLampCol; uniform vec3 uHor;
 ${GLSL_NOISE}
 ${GLSL_BSH}
+uniform vec3 uSunDir, uSunCol, uZen; uniform vec2 uIrK;
+const vec3 FILM_G[16] = ${glv(FILM_G)}; const vec3 FILM_P[16] = ${glv(FILM_P)};
+// reflectance of the barbule's keratin layer for the cosine of the angle of incidence; w = 1 the thicker (green at normal incidence) kind, 0 the thinner (purple)
+vec3 bFilm(float c, float w){ float t = clamp((c - 0.1) / 0.9, 0.0, 1.0) * 15.0; int i = int(floor(t)); int j = min(i + 1, 15); float f = t - float(i); return mix(mix(FILM_P[i], FILM_P[j], f), mix(FILM_G[i], FILM_G[j], f), w); }
+float bFilmW = 1.0;
 float bRough = 0.6; float bIrid = 0.0; float bBump = 0.0; float bTrans = 0.0;   // bTrans: how much sky a feather seen from below lets through
 vec3 bPerturb(vec3 vpos, vec3 n, float h, float sc){ vec3 dpx = dFdx(vpos), dpy = dFdy(vpos); float dhx = dFdx(h), dhy = dFdy(h); vec3 r1 = cross(dpy, n), r2 = cross(n, dpx); float det = dot(dpx, r1); vec3 g = sign(det) * (dhx * r1 + dhy * r2); float t = sc * length(g) / max(abs(det), 1e-12); return normalize(abs(det) * n - sc * g * min(1.0, 0.9 / max(t, 1e-6))); }
 // Overlapping feathers on a lattice: tips toward +g.x, each row lying on the row behind it (larger g.x). cid: which feather is on top at this point (cid.y wraps at wr).
@@ -62,9 +83,10 @@ vec3 birdAlbedo(vec3 N, vec3 Vv){
     vec3 base = body * 0.60; float nv = clamp(dot(N, Vv), 0.0, 1.0);
     vec2 g = vec2((1.0 - uvp.x) * 16.0, uvp.y * 24.0) + 0.26 * vec2(sin(an * 2.0 + uvp.x * 9.0 + seed * 30.0), sin(an * 3.0 - uvp.x * 13.0 + seed * 50.0));
     vec2 cid, fl; vec2 fe = fthr(g, 24.0, cid, fl); float sc = max(fe.x * 0.7, fe.y);
-    float hue = uvp.x * 0.9 + nv * 0.9 + sin(uvp.y * 12.566) * 0.08 + (h21(cid + seed * 9.0) - 0.5) * 0.14; vec3 ir = mix(vec3(0.50, 0.16, 0.60), vec3(0.06, 0.60, 0.34), ss(0.75, 1.15, hue)); ir = mix(ir, vec3(0.55, 0.30, 0.10), ss(1.45, 1.75, hue) * 0.5);
+    // which kind of barbule this feather carries: green ones towards the head and the sides, purple towards the breast, each feather deciding for itself
+    bFilmW = ss(0.42, 0.58, uvp.x + sin(uvp.y * 12.566) * 0.06 + (h21(cid + seed * 9.0) - 0.5) * 0.30); vec3 ir = bFilm(nv, bFilmW) * 5.0;
     float amt = (0.35 + 0.65 * pow(1.0 - abs(nv - 0.6), 3.0)) * (1.0 - 0.45 * sc) * ss(0.02, 0.25, uvp.x) * (1.0 - step(2.5, typ) * 0.35);
-    col = base * (1.0 - 0.2 * sc) + ir * amt * 0.30; bRough = 0.30; bIrid = amt; bBump = -sc * 0.85;
+    col = base * (1.0 - 0.2 * sc) * 0.8 + ir * amt * 0.05; bRough = 0.30; bIrid = amt; bBump = -sc * 0.85;
     float wp = ss(1.0 - white, 1.0 - white + 0.05, vnoise(vec2(uvp.x * 3.0 + 0.9 * cos(an), 1.2 * sin(an)) + seed * 11.0)); col = mix(col, vec3(0.86), wp * step(0.01, white));
   } else if (reg < 2.5) { col = body * 0.62 * (0.92 + 0.16 * vnoise(vec2(uvp.x * 60.0, av * 20.0))); float wp = step(0.55, white) * ss(0.35, 0.6, vnoise(vec2(uvp.x * 5.0 + 0.8 * cos(an), 0.8 * sin(an)) + seed * 7.0)); col = mix(col, vec3(0.86), wp); bRough = 0.5;
   } else if (reg < 3.5) { col = mix(vec3(0.075, 0.075, 0.085), vec3(0.20, 0.19, 0.18), ss(0.65, 1.0, uvp.x)); bRough = 0.32;
@@ -123,14 +145,17 @@ export class Birds {
     this.data = new Float32Array(TW * count * 4); this.tex = new THREE.DataTexture(this.data, TW, count, THREE.RGBAFormat, THREE.FloatType); this.tex.minFilter = this.tex.magFilter = THREE.NearestFilter; this.tex.needsUpdate = true;
     this.mA = new Float32Array(count * 4); this.mB = new Float32Array(count * 4); geo.setAttribute('aMorphA', new THREE.InstancedBufferAttribute(this.mA, 4)); geo.setAttribute('aMorphB', new THREE.InstancedBufferAttribute(this.mB, 4));
     const M = Q.pbr ? THREE.MeshStandardMaterial : THREE.MeshLambertMaterial, par = { side: THREE.DoubleSide }; if (Q.pbr) { par.roughness = 0.6; par.metalness = 0; par.envMapIntensity = 0.6; }
-    const uni = { uBones: { value: this.tex }, uHideOn: { value: 1 }, uHor: U.uHor, uNight: U.uNight, uLampTex: U.uLampTex, uLampRect: U.uLampRect, uLampCol: U.uLampCol, uBSh: U.uBSh, uBShM: U.uBShM, uBShP: U.uBShP, uBAO: U.uBAO, uBAOM: U.uBAOM, uBAOP: U.uBAOP };
+    const iq = new URLSearchParams(location.search).get('ir'); const uni = { uBones: { value: this.tex }, uHideOn: { value: 1 }, uSunDir: U.uSunDir, uSunCol: U.uSunCol, uZen: U.uZen, uIrK: { value: new THREE.Vector2(...(iq ? iq.split(',').map(Number) : [1.6, 5])) }, uHor: U.uHor, uNight: U.uNight, uLampTex: U.uLampTex, uLampRect: U.uLampRect, uLampCol: U.uLampCol, uBSh: U.uBSh, uBShM: U.uBShM, uBShP: U.uBShP, uBAO: U.uBAO, uBAOM: U.uBAOM, uBAOP: U.uBAOP };
     this.mat = patchMaterial(new M(par), { key: 'bird' + (Q.pbr ? 's' : 'l'), sunK: true, vPars: V_PARS,
       vNormal: `gBirdP = position; birdSkin(gBirdP, objectNormal); vPat = aPat; vMA = aMorphA; vMB = aMorphB;`, vBegin: `transformed = gBirdP;`,
       vEnd: `vWPos = (modelMatrix * instanceMatrix * vec4(transformed, 1.0)).xyz;`, fPars: F_PARS,
       fAlbedo: `{ vec3 bn = normalize(vNormal); bn = gl_FrontFacing ? bn : -bn; diffuseColor.rgb = birdAlbedo(bn, normalize(vViewPosition)); hSunK = hBirdSun(vWPos + inverseTransformDirection(bn, viewMatrix) * 0.012); }`,
       fRough: `roughnessFactor = bRough;`,
       fNormal: `{ float bw = fwidth(vPat.x) + fwidth(vPat.y); normal = bPerturb(-vViewPosition, normal, bBump, 0.0008 * (1.0 - ss(0.004, 0.02, bw))); }`,
-      fEmissive: `{ vec2 luv = (vWPos.xz - uLampRect.xy) * uLampRect.zw; vec4 lt = texture2D(uLampTex, luv); float gy = lt.g * 16.0 - 8.0; totalEmissiveRadiance += diffuseColor.rgb * uLampCol * (lt.r * lt.r) * (1.0 - ss(0.5, 6.5, vWPos.y - gy)) * uNight * 1.25; float fz = pow(1.0 - clamp(dot(normal, normalize(vViewPosition)), 0.0, 1.0), 2.4); totalEmissiveRadiance += diffuseColor.rgb * (uHor + 0.12) * fz * 0.5 * (1.0 - uNight) * step(vPat.z, 2.5); totalEmissiveRadiance += diffuseColor.rgb * (uHor * 0.5 + 0.02) * bTrans * (1.0 - uNight); }`,
+      fEmissive: `if (bIrid > 0.002) { vec3 Vn = normalize(vViewPosition); float nv = clamp(dot(normal, Vn), 0.0, 1.0); vec3 Lv = normalize((viewMatrix * vec4(uSunDir, 0.0)).xyz); vec3 Hh = normalize(Lv + Vn); float nh = max(dot(normal, Hh), 0.0), nl = max(dot(normal, Lv), 0.0);
+        vec3 sky = mix(uHor, uZen, clamp(reflect(-Vn, normal).y * 0.5 + 0.5, 0.0, 1.0));   /* the barbules mirror the sky at the angle they are seen at, and the sun around the half vector (they are not all parallel: a wide lobe) */
+        totalEmissiveRadiance += bIrid * (1.0 - uNight) * (bFilm(nv, bFilmW) * sky * uIrK.x + bFilm(max(dot(Lv, Hh), 0.0), bFilmW) * uSunCol * pow(nh, 9.0) * nl * hSunK * uIrK.y); }
+      { vec2 luv = (vWPos.xz - uLampRect.xy) * uLampRect.zw; vec4 lt = texture2D(uLampTex, luv); float gy = lt.g * 16.0 - 8.0; totalEmissiveRadiance += diffuseColor.rgb * uLampCol * (lt.r * lt.r) * (1.0 - ss(0.5, 6.5, vWPos.y - gy)) * uNight * 1.25; float fz = pow(1.0 - clamp(dot(normal, normalize(vViewPosition)), 0.0, 1.0), 2.4); totalEmissiveRadiance += diffuseColor.rgb * (uHor + 0.12) * fz * 0.5 * (1.0 - uNight) * step(vPat.z, 2.5); totalEmissiveRadiance += diffuseColor.rgb * (uHor * 0.5 + 0.02) * bTrans * (1.0 - uNight); }`,
       fFinal: `gl_FragColor.a = vViewPosition.z;` }, uni);
     const depthHooks = { key: 'birdD', vPars: V_PARS, vBegin: `{ vec3 dn = vec3(0.0, 1.0, 0.0); birdSkin(transformed, dn); vPat = aPat; }` };
     this.mesh = new THREE.InstancedMesh(geo, this.mat, count); this.mesh.frustumCulled = false; this.mesh.castShadow = (Q.shadowEvery || 1) === 1; this.mesh.receiveShadow = true;
