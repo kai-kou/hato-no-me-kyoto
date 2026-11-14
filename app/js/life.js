@@ -95,7 +95,7 @@ export class People {
   _still(av, h) { h.i = this.H.length; h.av = av; h.mesh = av.mesh; av.mesh.castShadow = this._sh; this.scene.add(av.root); this.scene.add(av.mesh); av.place(h.x, h.y, h.z, h.yaw); av.pose(h.clip, h.u);
     if (h.ground) { const A = av.A, nav = this.nav, sy = Math.sin(h.yaw), cy = Math.cos(h.yaw), fwd = h.fwd = new THREE.Vector3(sy, 0, cy), P = new THREE.Vector3(); h.feet = []; let ty = 0, ay = 0;   /* seated on the bank, not on a chair: the hips come down to the ground and the feet are set where the slope is, a little way in front */
       for (let k = 0; k < 2; k++) { const f = av.bones[k ? A.footR : A.footL]; ty += P.setFromMatrixPosition(f.parent.parent.matrixWorld).y - h.y; ay += P.setFromMatrixPosition(f.matrixWorld).y - h.y; } ty /= 2; ay /= 2;
-      h.y = nav.ground(h.x, h.z) + 0.105 * av.k - ty; av.place(h.x, h.y, h.z, h.yaw); av.pose(h.clip, h.u);
+      h.y = Math.min(nav.ground(h.x, h.z), nav.ground(h.x - sy * 0.13, h.z - cy * 0.13)) + 0.095 * av.k - ty; av.place(h.x, h.y, h.z, h.yaw); av.pose(h.clip, h.u);
       for (let k = 0; k < 2; k++) { const f = av.bones[k ? A.footR : A.footL]; P.setFromMatrixPosition(f.parent.parent.matrixWorld); const d = h.reach * av.k * (k ? 1 : 0.94), x = P.x + sy * d + cy * (k ? -0.02 : 0.02), z = P.z + cy * d - sy * (k ? -0.02 : 0.02); h.feet.push(new THREE.Vector3(x, Math.max(nav.ground(x, z), nav.ground(h.x, h.z) - 0.42 * av.k) + ay, z)); }
       av.sitGround(h.feet, fwd); h.y = nav.ground(h.x, h.z); }
     this.H.push(h); this.AV.push(h); return h; }

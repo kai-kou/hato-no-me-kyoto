@@ -467,7 +467,11 @@ html.lp #lp { display: block; position: fixed; inset: 0; z-index: 60; overflow-x
   window.addEventListener('error', function (e) { var t = e.target; if (!window.__hatoBooted || (t && t !== window && t.tagName && t.tagName !== 'SCRIPT')) return; // a font, picture or film that fails to load is not a reason to stop
     show('エラー: ' + (e.message || (t && t.src) || '読み込みに失敗しました')); }, true);
   window.addEventListener('unhandledrejection', function (e) { if (!window.__hatoBooted) return; show('エラー: ' + (e.reason && e.reason.message || e.reason)); });
-  window.__hatoWatch = function () { setTimeout(function () { if (!window.__app) show('スクリプトを読み込めませんでした。ページを再読み込みしてください。', true); }, 12000); };
+  // the program is about 1 MB: on a slow line it is still on its way after 12 s, which is not a failure. Say so, take the note away when it arrives, and call it a failure only after a minute and a half
+  window.__hatoWatch = function () { var t0 = Date.now(), slow = 'プログラムの読み込みに時間がかかっています。そのままお待ちください。', iv = setInterval(function () { var dt = Date.now() - t0;
+    if (window.__app) { clearInterval(iv); if (err.textContent === slow) { err.textContent = ''; err.style.display = 'none'; } return; }
+    if (dt > 90000) { clearInterval(iv); if (err.textContent === slow) err.textContent = ''; show('スクリプトを読み込めませんでした。ページを再読み込みしてください。', true); }
+    else if (dt > 12000) show(slow, true); }, 1000); };
   if (!window.WebGL2RenderingContext) show('このブラウザは WebGL2 に対応していません。'); })();
 </script>
 <script>

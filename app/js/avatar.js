@@ -19,8 +19,8 @@ export async function loadAvatar(id, Q, base = './p/') {
   const parts = ['body', 'head', 'opacity'], mats = [], an = Q.tier === 'low' ? 1 : 4;
   for (const p of parts) { if (!J.groups.some(gr => gr.part === p)) { mats.push(mats[0]); continue; }   /* some figures have no hair cards: nothing to fetch, and the slot is never drawn */
     const map = await texture(base + id + '_' + p + '_color.webp', true, an), nm = p === 'opacity' || Q.tier === 'low' ? null : await texture(base + id + '_' + p + '_normal.webp', false, an);
-    const params = { vertexColors: false, map }; if (nm && Q.pbr) params.normalMap = nm; if (p === 'opacity') { params.alphaTest = 0.5; params.side = THREE.DoubleSide; }
-    mats.push(cityMaterial('avatar', Q, { rough: p === 'head' ? 0.58 : 0.8, env: 0.35, params })); }
+    const params = { vertexColors: false, map }; if (nm && Q.pbr) params.normalMap = nm; if (p === 'opacity') params.alphaTest = 0.5;   // front faces only: the cards' backs, lit through the city's material, came out the colour of the sky
+    mats.push(cityMaterial('avatar', Q, { rough: p === 'head' ? 0.58 : p === 'opacity' ? 0.96 : 0.8, env: p === 'opacity' ? 0.04 : 0.35, params })); }   // hair cards are seen edge-on all the time: any mirror-like term turns them into white streaks
   for (const gr of J.groups) g.addGroup(gr.start, gr.count, parts.indexOf(gr.part));
   let y0 = 1e9, y1 = -1e9; { const P = g.attributes.position.array; for (let i = 1; i < P.length; i += 3) { if (P[i] < y0) y0 = P[i]; if (P[i] > y1) y1 = P[i]; } }
   const inv = F32(J.inv), clips = {}; for (const c of J.clips) clips[c.name] = { dur: c.dur, nf: c.nf, travel: Math.hypot(c.travel[0], c.travel[1]) / 100, q: new Int16Array(buf.slice(o + c.q[0], o + c.q[0] + c.q[1] * 2)), h: F32(c.h) };

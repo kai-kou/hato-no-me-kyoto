@@ -83,6 +83,9 @@ export class Post {
     this._pass(this.mPano, this.rt);
   }
   renderScene(scene, camera) { const r = this.r; r.setRenderTarget(this.rt); r.clear(); r.render(scene, camera); }
+  // the view depth that the last frame wrote at a point of the screen (u, v from the bottom left, 0..1); null where it cannot be read. The frame buffer keeps view depth in alpha for the depth of field, so one pixel tells what is in front
+  async probe(u, v) { if (this.type !== THREE.HalfFloatType || !this.rt || this.noProbe) return null; const x = Math.min(this.rt.width - 1, Math.max(0, Math.floor(u * this.rt.width))), y = Math.min(this.rt.height - 1, Math.max(0, Math.floor(v * this.rt.height))), buf = this._pb || (this._pb = new Uint16Array(4));
+    try { await this.r.readRenderTargetPixelsAsync(this.rt, x, y, 1, 1, buf); } catch (e) { this.noProbe = true; return null; } const d = THREE.DataUtils.fromHalfFloat(buf[3]); return d > 0.001 && isFinite(d) ? d : null; }
   finish() {
     const r = this.r, Q = this.Q, o = this.opts, w = this.w, h = this.h;
     // bloom

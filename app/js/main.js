@@ -43,9 +43,9 @@ app.stage = (key, label) => { const i = Math.max(0, STEPS.indexOf(key)); if (!ap
 
 let last = performance.now();
 function frame(now) {
-  requestAnimationFrame(frame); let dt = Math.min(0.05, (now - last) / 1000); last = now; if (!app.ready || document.hidden) return;
+  requestAnimationFrame(frame); const real = Math.min(1, (now - last) / 1000); let dt = Math.min(0.05, real); last = now; if (!app.ready || document.hidden) return;
   if (REC) { if (!window.__next) return; window.__next = false; dt = 1 / REC; }
-  renderer.info.reset(); app.rawDt = REC ? 0.016 : dt;
+  renderer.info.reset(); app.rawDt = REC ? 0.016 : real;   // the time the frame really took: the simulation step is capped at 50 ms, the speed shown to the visitor and used to lighten the load is not
   if (app.timeScale) { app.hour = (app.hour + dt * app.timeScale / 3600) % 24; world.setHour(app.hour); }
   if (app.tick) app.tick(dt);
   world.update(camera, app.focus, dt);
