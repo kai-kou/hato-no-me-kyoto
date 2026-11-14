@@ -1,0 +1,33 @@
+<!doctype html><meta charset="utf-8"><title>avatar export (development only)</title>
+<script type="importmap">{ "imports": { "three": "./js/three.module.min.js" } }</script>
+<script type="module">
+// Turns one Rocketbox avatar (FBX) and a set of animation clips (FBX) into flat arrays the piece can load without an FBX parser.
+import * as THREE from 'three';
+import { FBXLoader } from './_dev/loaders/FBXLoader.js';
+const qs = new URLSearchParams(location.search), L = new FBXLoader(), load = u => new Promise((ok, no) => L.load(u, ok, undefined, no));
+const b64 = u8 => { let s = ''; for (let i = 0; i < u8.length; i += 0x8000) s += String.fromCharCode.apply(null, u8.subarray(i, i + 0x8000)); return btoa(s); };
+window.__run = async (av, anims) => { const o = await load('./_dev/rb/' + av + '.fbx'); o.updateMatrixWorld(true);
+  const bones = []; o.traverse(b => { if (b.isBone) bones.push(b); }); const bi = new Map(bones.map((b, i) => [b, i])), inv = new Array(bones.length).fill(null);
+  const P = [], N = [], UV = [], SI = [], SW = [], IDX = [], groups = []; let vo = 0; const _v = new THREE.Vector3(), nm = new THREE.Matrix3();
+  o.traverse(m => { if (!m.isSkinnedMesh) return; const g = m.geometry, pos = g.attributes.position, nor = g.attributes.normal, uv = g.attributes.uv, si = g.attributes.skinIndex, sw = g.attributes.skinWeight, sk = m.skeleton, bm = m.bindMatrix; nm.getNormalMatrix(bm);
+    sk.bones.forEach((b, k) => { const gi = bi.get(b); if (gi !== undefined && !inv[gi]) inv[gi] = sk.boneInverses[k].clone(); });
+    for (let i = 0; i < pos.count; i++) { _v.fromBufferAttribute(pos, i).applyMatrix4(bm); P.push(_v.x, _v.y, _v.z); _v.fromBufferAttribute(nor, i).applyMatrix3(nm).normalize(); N.push(_v.x, _v.y, _v.z); UV.push(uv.getX(i), uv.getY(i));
+      const w = [sw.getX(i), sw.getY(i), sw.getZ(i), sw.getW(i)], s = w[0] + w[1] + w[2] + w[3] || 1; for (let k = 0; k < 4; k++) { SI.push(bi.get(sk.bones[[si.getX(i), si.getY(i), si.getZ(i), si.getW(i)][k]]) || 0); SW.push(Math.round(255 * w[k] / s)); } }
+    const mats = Array.isArray(m.material) ? m.material : [m.material], gs = g.groups.length ? g.groups : [{ start: 0, count: (g.index ? g.index.count : pos.count), materialIndex: 0 }];
+    for (const gr of gs) { const n = (mats[gr.materialIndex] || mats[0]).name.toLowerCase(), part = n.includes('head') ? 'head' : n.includes('opac') ? 'opacity' : 'body', start = IDX.length; for (let k = gr.start; k < gr.start + gr.count; k++) IDX.push((g.index ? g.index.getX(k) : k) + vo); groups.push({ part, start, count: IDX.length - start }); }
+    vo += pos.count; });
+  bones.forEach((b, i) => { if (!inv[i]) inv[i] = b.matrixWorld.clone().invert(); });
+  const J = { av, nv: vo, ni: IDX.length, groups, bones: bones.map(b => ({ n: b.name, p: bi.has(b.parent) ? bi.get(b.parent) : -1, t: b.position.toArray().map(v => +v.toFixed(4)), q: b.quaternion.toArray().map(v => +v.toFixed(6)), s: b.scale.toArray().map(v => +v.toFixed(4)) })), rootM: (() => { const r0 = bones.find(b => !bi.has(b.parent)); return r0.parent ? r0.parent.matrixWorld.toArray().map(v => +v.toFixed(6)) : null; })(), clips: [] };
+  const bin = []; const put = (name, arr) => { J[name] = [bin.reduce((a, x) => a + x.byteLength, 0), arr.length]; bin.push(new Uint8Array(arr.buffer, arr.byteOffset, arr.byteLength)); const pad = (4 - arr.byteLength % 4) % 4; if (pad) bin.push(new Uint8Array(pad)); };
+  put('pos', new Float32Array(P)); put('nor', new Int8Array(N.map(v => Math.round(v * 127)))); put('uv', new Float32Array(UV)); put('si', new Uint8Array(SI)); put('sw', new Uint8Array(SW)); put('idx', new Uint16Array(IDX)); put('inv', new Float32Array(inv.flatMap(m => m.toArray())));
+  if (vo > 65535) throw new Error('more than 65535 vertices');
+  // animation clips, sampled on this avatar's own skeleton
+  const mx = new THREE.AnimationMixer(o), hip = bones.find(b => b.name === 'Bip01');
+  for (const [name, file, fps, maxS] of anims) { const a = await load('./_dev/anim/' + file + '.fbx'), clip = a.animations[0], dur = Math.min(clip.duration, maxS || 1e9), nf = Math.max(2, Math.round(dur * fps) + 1), act = mx.clipAction(clip); mx.stopAllAction(); act.reset().play();
+    const Qd = new Int16Array(nf * bones.length * 4), Hp = new Float32Array(nf * 3);
+    for (let f = 0; f < nf; f++) { mx.setTime(Math.min(dur * f / (nf - 1), clip.duration - 1e-4)); for (let i = 0; i < bones.length; i++) { const q = bones[i].quaternion, o4 = (f * bones.length + i) * 4; Qd[o4] = Math.round(q.x * 32767); Qd[o4 + 1] = Math.round(q.y * 32767); Qd[o4 + 2] = Math.round(q.z * 32767); Qd[o4 + 3] = Math.round(q.w * 32767); } Hp[f * 3] = hip.position.x; Hp[f * 3 + 1] = hip.position.y; Hp[f * 3 + 2] = hip.position.z; }
+    const c = { name, dur: +dur.toFixed(4), nf, travel: [Hp[(nf - 1) * 3] - Hp[0], Hp[(nf - 1) * 3 + 2] - Hp[2]].map(v => +v.toFixed(2)) }; J.clips.push(c); const k = J.clips.length - 1; put('cq' + k, Qd); put('ch' + k, Hp); c.q = J['cq' + k]; c.h = J['ch' + k]; delete J['cq' + k]; delete J['ch' + k]; act.stop(); mx.uncacheClip(clip); }
+  const total = bin.reduce((a, x) => a + x.byteLength, 0), B = new Uint8Array(total); let off = 0; for (const x of bin) { B.set(x, off); off += x.byteLength; }
+  return { json: JSON.stringify(J), bin: b64(B), nv: vo, tris: IDX.length / 3, bones: bones.length, clips: J.clips.map(c => [c.name, c.dur, c.nf, c.travel]) }; };
+window.__ready = true;
+</script>

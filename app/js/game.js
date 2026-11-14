@@ -6,6 +6,7 @@ import { U, cityMaterial } from './world.js';
 import { Sound } from './audio.js';
 import { buildScenery } from './scenery.js';
 import { People, Traffic } from './life.js';
+import { loadAvatar } from './avatar.js';
 import { Cover } from './cover.js';
 import { clamp, lerp, damp, dampAng, angDiff, smooth, TAU, rr, R, numq, listq } from './util.js';
 
@@ -53,7 +54,8 @@ export async function start(app) {
   await stage('scenery', '木と橋を配置中');
   try { app.scenery = buildScenery(app); const rs = app.scenery.roosts; if (rs && rs.length) { flock.roosts = rs; for (const st of flock.sites) if (Math.hypot(st.x + 64, st.z - 153) < 70) st.perch = st.perch.concat(rs.filter((_, i) => i % 3 === 0)); } } catch (e) { console.warn('scenery: ' + e.message); }
   let people = null, traffic = null; await stage('people', '人と車を配置中');
-  try { if (!qs.get('nolife')) { people = new People(app, { walkers: Q.tier === 'low' ? 8 : 14, couples: Q.tier === 'low' ? 6 : 9 }); flock.threats = people.threats; traffic = new Traffic(app, app.scenery && app.scenery.deckY, { kawabata: Q.tier === 'low' ? 8 : 12, shijo: Q.tier === 'low' ? 5 : 7 }); app.people = people; app.traffic = traffic; } } catch (e) { console.warn('life: ' + e.message); }
+  let avatars = null; if (qs.get('people') === 'asset') try { const ids = (qs.get('av') || 'f01,m01,f05,m06,f13,m11,f02,m16,f08,m02,f17,m08').split(',').slice(0, Q.tier === 'low' ? 6 : 12); avatars = await Promise.all(ids.map(id => loadAvatar(id, Q))); } catch (e) { console.warn('avatars: ' + e.message); avatars = null; }
+  try { if (!qs.get('nolife')) { people = new People(app, { walkers: Q.tier === 'low' ? 8 : 14, couples: Q.tier === 'low' ? 6 : 9, avatars }); flock.threats = people.threats; app.people = people; traffic = new Traffic(app, app.scenery && app.scenery.deckY, { kawabata: Q.tier === 'low' ? 8 : 12, shijo: Q.tier === 'low' ? 5 : 7 }); app.people = people; app.traffic = traffic; } } catch (e) { console.warn('life: ' + e.message); }
   await stage('cover', '足元の小石と草を配置中');
   let cover = null; try { if (Q.cover && !qs.get('nocover')) cover = new Cover(app); app.cover = cover; } catch (e) { console.warn('cover: ' + e.message); }
   const snd = new Sound(); app.snd = snd;

@@ -1,0 +1,20 @@
+<!doctype html><meta charset="utf-8"><title>data people check (development only)</title><style>html,body{margin:0;background:#888}canvas{display:block}</style><canvas id="c"></canvas>
+<script type="module">
+import * as THREE from './js/three.module.min.js';
+import { loadAvatar, Avatar } from './js/avatar.js';
+import { U } from './js/world.js';
+const qs = new URLSearchParams(location.search), num = (k, d) => qs.get(k) ? qs.get(k).split(',').map(Number) : d;
+const r = new THREE.WebGLRenderer({ canvas: document.getElementById('c'), antialias: true }); r.setSize(innerWidth, innerHeight); r.shadowMap.enabled = true; r.shadowMap.type = THREE.PCFSoftShadowMap; r.toneMapping = THREE.ACESFilmicToneMapping; r.toneMappingExposure = 0.9;
+const sc = new THREE.Scene(); sc.background = new THREE.Color(0.55, 0.68, 0.86); const sd = num('sun', [0.5, 0.75, 0.45]), sun = new THREE.DirectionalLight(0xfff1dc, 3.2); sun.position.set(sd[0] * 20, sd[1] * 20, sd[2] * 20); sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048); Object.assign(sun.shadow.camera, { left: -8, right: 8, top: 8, bottom: -8, near: 1, far: 50 }); sun.shadow.bias = -0.0004; sc.add(sun);
+sc.add(new THREE.HemisphereLight(0xbcd3f2, 0x8a7f70, 1.15)); U.uSunDir.value.set(sd[0], sd[1], sd[2]).normalize(); U.uSunCol.value.set(1, 0.945, 0.86); U.uSunI.value = 3.2;
+const gm = new THREE.MeshStandardMaterial({ color: 0x9a948a, roughness: 0.95 }), gnd = new THREE.Mesh(new THREE.PlaneGeometry(60, 60), gm); gnd.rotation.x = -Math.PI / 2; gnd.receiveShadow = true; sc.add(gnd);
+{ const dt = new THREE.DepthTexture(4, 4); dt.compareFunction = THREE.LessEqualCompare; const rt = new THREE.WebGLRenderTarget(4, 4, { depthTexture: dt }); r.setRenderTarget(rt); r.clear(); r.setRenderTarget(null); U.uBSh.value = dt; U.uBShP.value.set(0, 0.25, 0, 0); }
+const Q = { tier: qs.get('q') || 'high', pbr: qs.get('q') !== 'low' }, ids = (qs.get('ids') || 'f01,m01,f05,m06,f13,m11,f02,m16').split(','), poses = (qs.get('poses') || 'walk,walk2,idle,phone,sit,sit,look,walk').split(','), u0 = +(qs.get('u') || 0.3), t0 = performance.now(); window.__info = [];
+const A = await Promise.all(ids.map(id => loadAvatar(id, Q))); window.__loadMs = Math.round(performance.now() - t0);
+A.forEach((a, i) => { const st = (a.sex === 'f' ? 1.58 : 1.71) + ((i * 37) % 7 - 3) * 0.012, p = new Avatar(a, st), x = (i - (ids.length - 1) / 2) * 0.95, ps = poses[i % poses.length], sit = ps === 'sit'; p.place(x, 0, 0, 0); p.pose(ps, (u0 + i * 0.17) % 1, { dy: 0 }); sc.add(p.root); sc.add(p.mesh); (window.__P = window.__P || []).push([p, ps, (u0 + i * 0.17) % 1]);
+  if (sit) { const hipY = p.bones[a.hip].getWorldPosition(new THREE.Vector3()).y, box = new THREE.Mesh(new THREE.BoxGeometry(0.6, hipY - 0.13, 0.5), gm); box.position.set(x, (hipY - 0.13) / 2, -0.12); box.castShadow = box.receiveShadow = true; sc.add(box); }
+  window.__info.push({ id: a.id, h: +a.height.toFixed(2), st: +st.toFixed(2), pose: ps, clips: Object.keys(a.clips).map(k => k + ':' + a.clips[k].travel.toFixed(2)) }); });
+const c = num('cam', [0, 1.3, 5.6, 0, 0.9, 0, 42]), cam = new THREE.PerspectiveCamera(c[6], innerWidth / innerHeight, 0.05, 200); cam.position.set(c[0], c[1], c[2]); cam.lookAt(c[3], c[4], c[5]);
+let n = 0; (function loop() { if (qs.get('anim')) for (const e of window.__P) { e[2] = (e[2] + 0.013) % 1; e[0].pose(e[1], 1 - Math.abs(2 * e[2] - 1)); } r.render(sc, cam); if (++n > (qs.get('anim') ? 40 : 4)) window.__ready = true; window.__tris = r.info.render.triangles; requestAnimationFrame(loop); })();
+window.addEventListener('error', e => { window.__err = String(e.message); }); window.addEventListener('unhandledrejection', e => { window.__err = String(e.reason); });
+</script>

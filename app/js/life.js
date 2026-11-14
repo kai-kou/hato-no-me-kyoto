@@ -5,6 +5,7 @@ import { cityMaterial } from './world.js';
 import { clamp, lerp, rng, TAU, damp, dampAng } from './util.js';
 import { buildPerson, Rig, randomSpec, bakePose, B } from './human.js';
 import { U } from './world.js';
+import { Avatar } from './avatar.js';
 
 const IDENT = new THREE.Matrix4();
 // Walking routes are traced from the nav grid, so nobody walks through a house or on the river.
@@ -29,6 +30,8 @@ export class People {
     const { scene, world, Q } = app; this.app = app; this.nav = world.nav; this.rnd = rng(77123); const rnd = this.rnd, rr = (a, b) => a + (b - a) * rnd(), nav = this.nav;
     this.mat = cityMaterial('cloth', Q, { rough: 0.9 }); const lod = Q.tier === 'low' ? 1 : 0; this.H = []; this.threats = []; this._v = new THREE.Vector3(); this._fr = new THREE.Frustum(); this._pm = new THREE.Matrix4(); this._sp = new THREE.Sphere();
     // walkers go back and forth along the traced routes (Kamo west terrace, Pontocho, Gion Shimbashi-dori)
+    // people from data (opts.avatars, see avatar.js) take the place of the generated ones wherever a recorded motion exists: walkers, sitters, standers. Joggers and people in kimono stay generated.
+    const AV = opts.avatars && opts.avatars.length ? opts.avatars : null, avOf = (sex, k) => { const c = AV.filter(a => a.sex === sex); return c[k % c.length]; }, stat = sex => sex === 'f' ? rr(1.50, 1.66) : rr(1.63, 1.80); let avK = 0; this.AV = []; this.scene = scene; this._sh = Q.tier !== 'low';
     const nW = opts.walkers ?? 14, terr = traceTerrace(nav), paths = [
       makePath(terr.map(r => ({ ...r })), false, 1.0, 3.2, { n: Math.round(nW * 0.5), jog: 0.3, kim: 0.08, kimAt: [5] }),
       makePath(traceRoad(nav, false, -156, 128, 4, -103, -112, -96), false, 0.35, 0.6, { n: Math.round(nW * 0.25), jog: 0, kim: 0.3, kimAt: [1] }),
@@ -36,6 +39,7 @@ export class People {
     ].filter(p => p.rows.length > 3); this.paths = paths; const Pt = this._pt = {};
     // a few walkers are always in kimono (kimAt), whatever the dice say; their outfit comes from its own generator so everyone else stays the same
     for (const p of paths) for (let k = 0; k < p.n; k++) { const jog = rnd() < p.jog, dice = !jog && rnd() < p.kim, base = randomSpec(rnd, jog ? 'jog' : dice ? 'kimono' : 'walk'), force = !jog && !dice && (p.kimAt || []).includes(k), kim = dice || force;
+      if (AV && !jog && !kim) { const A = avOf(base.sex, avK++), st = stat(base.sex), av = new Avatar(A, st); scene.add(av.root); scene.add(av.mesh); av.mesh.castShadow = this._sh; const dir = rnd() < 0.5 ? 1 : -1, h = { i: this.H.length, walk: true, path: p, t: rnd(), dir, off: rr(-1, 1), jog: false, kim: false, v: rr(1.05, 1.45) * Math.sqrt(st / 1.72), ph: 0, u: rnd(), s: st / 1.72, av, mesh: av.mesh, clip: rnd() < 0.5 ? 'walk' : 'walk2', yaw: null, x: 0, y: 0, z: 0, turn: 0, turnT: rr(2, 9) }; this.H.push(h); this.AV.push(h); continue; }
       const P = buildPerson(Object.assign(force ? randomSpec(rng(9100 + paths.indexOf(p) * 16 + k), 'kimono') : base, { lod })), rig = new Rig(P), g = P.geometry; g.setAttribute('aBind', g.attributes.position);
       const mesh = new THREE.SkinnedMesh(g, this.mat); mesh.bind(rig.skeleton, IDENT); mesh.frustumCulled = false; mesh.matrixAutoUpdate = false; mesh.castShadow = Q.tier !== 'low'; mesh.receiveShadow = true; scene.add(mesh);
       const dir = rnd() < 0.5 ? 1 : -1; this.H.push({ i: this.H.length, walk: true, path: p, t: rnd(), dir, off: rr(-1, 1), jog, kim, v: (jog ? rr(2.6, 3.1) : kim ? rr(0.78, 0.95) : rr(1.05, 1.45)) * Math.sqrt(P.s), ph: rr(0, TAU), s: P.s, rig, mesh, yaw: null, x: 0, y: 0, z: 0, turn: 0, turnT: rr(2, 9) }); }
@@ -46,12 +50,14 @@ export class People {
     for (; nc < nC && z < 190; z += 7.2) { const e = edgeAt(z); if (e === null) continue; let xe = null; for (let x = e - 1.5; x < e + 3; x += 0.25) { const g0 = nav.ground(x, z), g1 = nav.ground(x + 1.4, z); if (g0 - g1 > 0.38 && nav.cls(x, z) === 0) { xe = x; break; } } if (xe === null && nav.cls(e + 0.3, z) === 0 && nav.ground(e, z) - nav.ground(e + 2.2, z) > 0.25) xe = e + 0.3;   // no clear step: sit at the top of the slope
       if (xe === null) continue; nc++; const solo = rnd() < 0.18;
       for (let m = 0; m < (solo ? 1 : 2); m++) { const dz = solo ? 0 : (m ? 0.30 : -0.30), x = xe + 0.05, zz = z + dz, y = nav.ground(x, zz), yaw = Math.PI / 2 + (solo ? rr(-0.2, 0.2) : (m ? 0.14 : -0.14)), turn = solo ? rr(-0.3, 0.3) : (m ? 0.5 : -0.5) * rr(0.2, 1), mode = rnd() < 0.3 ? 1 : 0;
+        if (AV) { const sex = rnd() < 0.5 ? 'f' : 'm', A = avOf(sex, avK++), st = stat(sex), av = new Avatar(A, st), fx = x + Math.sin(yaw) * 0.42, fz = zz + Math.cos(yaw) * 0.42; this._still(av, { x, y, z: zz, yaw: yaw + turn * 0.3, s: st / 1.72, sit: true, ground: true, reach: rr(0.50, 0.64), clip: 'sit', u: rnd(), rate: 0.5 / A.clips.sit.dur }); continue; }   // the recorded pose sits at chair height: the seat goes on the edge of the terrace, the feet down the bank
         const h = still(randomSpec(rnd, 'sit'), x, y, zz, yaw, (rig, s) => { const c = Math.cos(yaw), sn = Math.sin(yaw), feet = []; for (const sx of [1, -1]) { const lx = sx * 0.10 * s; let fz = (mode ? 0.66 : 0.52) * s, wx = x + lx * c + fz * sn, wz = zz - lx * sn + fz * c, fy = nav.ground(wx, wz) - y;
           if (fy < -0.30 * s) { fz = 0.44 * s; fy = Math.max(nav.ground(x + lx * c + fz * sn, zz - lx * sn + fz * c) - y, -0.40 * s); } feet.push([lx, fy, fz]); } rig.sit(feet, { mode, turn, lean: mode ? rr(-0.38, -0.25) : rr(0.08, 0.26) }); }); h.sit = true; } }
     // a few people who have stopped to look at the river or their phone
     const nS = opts.standing ?? 6, spots = [], at = (pi, t, sd, face) => { const p = paths[pi]; if (!p) return; const Q = p.at(t, Pt), x = Q.x - Q.uz * sd * (Q.w + 0.3), zz = Q.z + Q.ux * sd * (Q.w + 0.3); spots.push([x, zz, face === null ? Math.atan2(-Q.uz * sd, Q.ux * sd) + Math.PI : face]); };
     at(0, 0.10, -1, 1.57); at(0, 0.42, -1, 1.57); at(0, 0.66, -1, 1.57); at(0, 0.90, -1, 1.57); at(1, 0.38, 1, null); at(2, 0.30, -1, null); at(1, 0.74, -1, null); at(2, 0.78, 1, null);   // on the terrace they face the river
     for (let k = 0; k < Math.min(nS, spots.length); k++) { const sp = spots[k]; if (nav.cls(sp[0], sp[1]) === 1 || nav.cls(sp[0], sp[1]) === 3) continue; const phone = rnd() < 0.5, yaw = sp[2] + rr(-0.25, 0.25);
+      if (AV) { const sex = rnd() < 0.5 ? 'f' : 'm', A = avOf(sex, avK++), st = stat(sex), av = new Avatar(A, st), clip = phone ? 'phone' : rnd() < 0.5 ? 'idle' : 'look'; this._still(av, { x: sp[0], y: nav.ground(sp[0], sp[1]), z: sp[1], yaw, s: st / 1.72, stand: true, clip, u: rnd(), rate: 0.5 / A.clips[clip].dur }); continue; }
       const h = still(randomSpec(rnd, 'walk'), sp[0], nav.ground(sp[0], sp[1]), sp[1], yaw, rig => rig.stand({ phone, turn: phone ? 0 : rr(-0.5, 0.5), nod: phone ? 0.42 : rr(-0.05, 0.12), shift: rr(-1, 1), lean: phone ? 0.05 : 0.02 })); h.stand = true; }
     if (parts.length) { let nv = 0, ni = 0; for (const p of parts) { nv += p.g.attributes.position.count; ni += p.g.index.count; } const P = new Float32Array(nv * 3), N = new Float32Array(nv * 3), C = new Float32Array(nv * 4), F = new Float32Array(nv * 4), Bd = new Float32Array(nv * 3), I = new Uint32Array(ni); let vo = 0, io = 0;
       for (const p of parts) { const n = p.g.attributes.position.count; P.set(p.b.position, vo * 3); N.set(p.b.normal, vo * 3); C.set(p.g.attributes.color.array, vo * 4); F.set(p.g.attributes.aFace.array, vo * 4); Bd.set(p.g.attributes.position.array, vo * 3); const ix = p.g.index.array; for (let k = 0; k < ix.length; k++) I[io + k] = ix[k] + vo; vo += n; io += ix.length; p.g.dispose(); }
@@ -74,27 +80,38 @@ export class People {
   }
   // movement and the list of threats for the flock; the figures themselves are posed in pose(), after the camera has moved
   update(dt, hour) { const T = this.threats; T.length = 0; const out = hour > 6.5 && hour < 22.5, nav = this.nav;
-    if (this.still) { this.still.visible = hour > 7.5 && hour < 22.8; if (this.still.visible) for (const st of this.statics) T.push(st); }
+    { const sv = hour > 7.5 && hour < 22.8; this._on = sv; this._dt = dt; if (this.still) this.still.visible = sv; if (sv) for (const st of this.statics) T.push(st); }
     for (const h of this.H) { if (!h.walk) continue; h.hidden = !out || (h.jog && (hour < 6 || hour > 19.5)); if (h.hidden) continue;
       const p = h.path, len = p.len, s = h.s, Q = p.at(h.t += h.dir * h.v * dt / len, this._pt); if (h.t > 1) { h.t = 1; h.dir = -1; } if (h.t < 0) { h.t = 0; h.dir = 1; }
       const ux = Q.ux, uz = Q.uz, turn = clamp(Math.min(h.t, 1 - h.t) * len / 2.5, 0, 1), side = h.off * Q.w * (0.35 + 0.65 * turn) * h.dir; // keep to one side, and cross over near the ends to turn around
       h.x = Q.x - uz * side; h.z = Q.z + ux * side; h.y = nav.ground(h.x, h.z); const want = Math.atan2(ux * h.dir, uz * h.dir); h.yaw = h.yaw === null ? want : dampAng(h.yaw, want, 5, dt);
       // the time of one stride follows from the speed: cadence grows with about the 0.42 power of speed, anchored at 119.5 steps a minute at 1.48 m/s (measured on Japanese adults); so a slow walker takes fewer and shorter steps and nobody shares one rhythm. Joggers keep about 164 steps a minute; a kimono shortens the step
+      if (h.av) h.u = (h.u + h.v * dt / (h.av.A.clips[h.clip].travel * h.av.k)) % 1;   /* the recorded stride covers a known distance: advancing it by the distance walked keeps the feet from sliding at any speed */
       const Tc = h.jog ? 0.73 : 120 / (119.5 * Math.pow(h.v / Math.sqrt(s) / 1.48, 0.42)) * Math.sqrt(s) * (h.kim ? 0.88 : 1); h.ph += dt / Tc * TAU; T.push({ x: h.x, z: h.z, y: h.y, r: h.jog ? 3.0 : 1.5, run: h.jog });
       // now and then a walker looks aside (at the river, at a shop front)
       h.turnT -= dt; if (h.turnT <= 0) { h.turnT = 3 + 8 * this.rnd(); h.look = h.jog || this.rnd() < 0.45 ? 0 : (this.rnd() - 0.5) * 1.5; } h.turn = damp(h.turn, h.look || 0, 2.5, dt); h.T = Tc; }
     return T; }
   // the two patches of one person, from where the ankle bones are now; a lifted foot casts a wider, fainter one
-  _feet(h) { const dm = this.decal, nav = this.nav, s = h.s, hide = h.walk && (h.hidden || !h.mesh.visible);
-    for (let k = 0; k < 2; k++) { const e = h.rig.bones[k ? B.ftR : B.ftL].matrixWorld.elements, fx = e[8], fz = e[10], fl = Math.hypot(fx, fz) || 1, x = e[12] + fx / fl * 0.055 * s, z = e[14] + fz / fl * 0.055 * s, gy = nav.ground(x, z), lift = clamp((e[13] - gy - 0.07 * s) / (0.16 * s), 0, 1), w = hide ? 0 : (0.34 + 0.20 * lift) * s * (1 - 0.8 * lift);
+  _still(av, h) { h.i = this.H.length; h.av = av; h.mesh = av.mesh; av.mesh.castShadow = this._sh; this.scene.add(av.root); this.scene.add(av.mesh); av.place(h.x, h.y, h.z, h.yaw); av.pose(h.clip, h.u);
+    if (h.ground) { const A = av.A, nav = this.nav, sy = Math.sin(h.yaw), cy = Math.cos(h.yaw), fwd = h.fwd = new THREE.Vector3(sy, 0, cy), P = new THREE.Vector3(); h.feet = []; let ty = 0, ay = 0;   /* seated on the bank, not on a chair: the hips come down to the ground and the feet are set where the slope is, a little way in front */
+      for (let k = 0; k < 2; k++) { const f = av.bones[k ? A.footR : A.footL]; ty += P.setFromMatrixPosition(f.parent.parent.matrixWorld).y - h.y; ay += P.setFromMatrixPosition(f.matrixWorld).y - h.y; } ty /= 2; ay /= 2;
+      h.y = nav.ground(h.x, h.z) + 0.105 * av.k - ty; av.place(h.x, h.y, h.z, h.yaw); av.pose(h.clip, h.u);
+      for (let k = 0; k < 2; k++) { const f = av.bones[k ? A.footR : A.footL]; P.setFromMatrixPosition(f.parent.parent.matrixWorld); const d = h.reach * av.k * (k ? 1 : 0.94), x = P.x + sy * d + cy * (k ? -0.02 : 0.02), z = P.z + cy * d - sy * (k ? -0.02 : 0.02); h.feet.push(new THREE.Vector3(x, Math.max(nav.ground(x, z), nav.ground(h.x, h.z) - 0.42 * av.k) + ay, z)); }
+      av.sitGround(h.feet, fwd); h.y = nav.ground(h.x, h.z); }
+    this.H.push(h); this.AV.push(h); return h; }
+  _feet(h) { const dm = this.decal, nav = this.nav, s = h.s, hide = h.av ? !h.mesh.visible || h.hidden : h.walk && (h.hidden || !h.mesh.visible), cy = h.av ? Math.cos(h.yaw || 0) : 0, sy = h.av ? Math.sin(h.yaw || 0) : 0;
+    for (let k = 0; k < 2; k++) { const e = (h.av ? h.av.bones[k ? h.av.A.footR : h.av.A.footL] : h.rig.bones[k ? B.ftR : B.ftL]).matrixWorld.elements, fx = h.av ? sy : e[8], fz = h.av ? cy : e[10], fl = Math.hypot(fx, fz) || 1, x = e[12] + fx / fl * 0.055 * s, z = e[14] + fz / fl * 0.055 * s, gy = nav.ground(x, z), lift = clamp((e[13] - gy - (h.av ? 0.11 : 0.07) * s) / (0.16 * s), 0, 1), w = hide ? 0 : (0.34 + 0.20 * lift) * s * (1 - 0.8 * lift);
       this._dq.setFromAxisAngle(this._up, Math.atan2(fx, fz)); this._dm.compose(this._dp.set(x, gy + 0.012, z), this._dq, this._ds.set(w, 1, w * 1.55)); dm.setMatrixAt(h.d0 + k, this._dm); }
     if (h.sit) { const x = h.x - Math.sin(h.yaw) * 0.02, z = h.z - Math.cos(h.yaw) * 0.02; this._dq.setFromAxisAngle(this._up, h.yaw); this._dm.compose(this._dp.set(x, nav.ground(x, z) + 0.012, z), this._dq, this._ds.set(0.95 * s, 1, 0.80 * s)); dm.setMatrixAt(h.dS, this._dm); } }
   pose() { const app = this.app, cam = app.camera, pano = !!app.pano;
     if (!pano) { cam.updateMatrixWorld(); this._pm.multiplyMatrices(cam.projectionMatrix, this._pm.copy(cam.matrixWorld).invert()); this._fr.setFromProjectionMatrix(this._pm); }
     for (const h of this.H) { if (!h.walk) continue; if (h.hidden || h.yaw === null) { h.mesh.visible = false; continue; }
       const d = this._v.set(h.x - cam.position.x, h.y + 0.9 - cam.position.y, h.z - cam.position.z).length(); let vis = d < 420; if (vis && !pano) { this._sp.center.set(h.x, h.y + 0.9, h.z); this._sp.radius = 4; vis = this._fr.intersectsSphere(this._sp); }
-      h.mesh.visible = vis; if (!vis) continue; h.rig.root(h.x, h.y, h.z, h.yaw); h.rig.walk(h.ph, h.v, h.T, h.jog, { turn: h.turn, nod: h.jog ? 0 : 0.03, arm: h.kim ? 0.3 : 1, bend: h.kim ? 0.25 : 0 }); }
-    if (this.decal) { for (const h of this.H) if (h.walk && h.rig) this._feet(h); this.decal.instanceMatrix.needsUpdate = true; const sv = !this.still || this.still.visible; if (sv !== this._sv) { this._sv = sv; const a = this.decal.instanceMatrix.array; for (const h of this.H) if (!h.walk) { const n = h.sit ? 3 : 2; for (let i = h.d0 * 16; i < (h.d0 + n) * 16; i++) a[i] = sv ? this._dSave[i] : 0; } }   /* the people who stay put go home at night, and their patches with them */
+      h.mesh.visible = vis; if (!vis) continue; if (h.av) { h.av.place(h.x, h.y, h.z, h.yaw); h.av.pose(h.clip, h.u); continue; } h.rig.root(h.x, h.y, h.z, h.yaw); h.rig.walk(h.ph, h.v, h.T, h.jog, { turn: h.turn, nod: h.jog ? 0 : 0.03, arm: h.kim ? 0.3 : 1, bend: h.kim ? 0.25 : 0 }); }
+    // the data people who stay put breathe, shift and look about: their clip runs forward and back, slowly; out of view they are left as they are
+    for (const h of this.AV) { if (h.walk) continue; let vis = this._on !== false; if (vis) { const d = this._v.set(h.x - cam.position.x, h.y + 0.9 - cam.position.y, h.z - cam.position.z).length(); vis = d < 320; if (vis && !pano) { this._sp.center.set(h.x, h.y + 0.9, h.z); this._sp.radius = 3; vis = this._fr.intersectsSphere(this._sp) || d < 6; } }
+      h.mesh.visible = this._on !== false; h.hidden = this._on === false; if (!vis) continue; h.u = (h.u + (this._dt || 0) * h.rate) % 1; h.av.pose(h.clip, 1 - Math.abs(2 * h.u - 1)); if (h.ground) h.av.sitGround(h.feet, h.fwd); }
+    if (this.decal) { for (const h of this.H) if ((h.walk && h.rig) || h.av) this._feet(h); this.decal.instanceMatrix.needsUpdate = true; const sv = this._on !== false; if (sv !== this._sv) { this._sv = sv; const a = this.decal.instanceMatrix.array; for (const h of this.H) if (!h.walk && !h.av) { const n = h.sit ? 3 : 2; for (let i = h.d0 * 16; i < (h.d0 + n) * 16; i++) a[i] = sv ? this._dSave[i] : 0; } }   /* the people who stay put go home at night, and their patches with them */
       this.dMat.uniforms.uA.value = 0.72 * (1 - 0.45 * U.uNight.value); } }
 }
 

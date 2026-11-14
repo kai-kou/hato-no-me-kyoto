@@ -34,6 +34,17 @@
 | ハトの両眼視野の幅 | Martin, G. R. & Young, S. R. (1983) The retinal binocular field of the pigeon. Vision Research 23(9), 911–915. <https://pubmed.ncbi.nlm.nih.gov/6636551/> |
 | 鴨川納涼床の期間 | 京都観光Navi <https://ja.kyoto.travel/event/single.php?event_id=4902> |
 
+## 人体データ（`?people=asset` を付けたときだけ使う）
+
+| 項目 | 内容 |
+| --- | --- |
+| データ | Microsoft Rocketbox Avatar Library の成人 12 体（Female_Adult_01, 02, 05, 08, 13, 17、Male_Adult_01, 02, 06, 08, 11, 16）と、動作 6 種（walk_neutral、walk_neutral_02、idle_neutral_01、idle_look_around_01、cell_phone_textmessage、sit_chair_idle_neutral_01） |
+| 使い方 | FBX と TGA を読み、形・骨・動作を独自形式（`app/p/<id>.txt`）に、テクスチャを 1024 px の WebP（`app/p/*.webp`）に変換した。変換は `tools/avatar_export.py` |
+| 出典 | <https://github.com/microsoft/Microsoft-Rocketbox> |
+| 利用条件 | MIT License。Copyright (c) 2020 Microsoft。全文は [app/p/LICENSE.txt](app/p/LICENSE.txt) |
+
+既定の動作ではこのデータを読み込みません。
+
 ## ソフトウェア
 
 | ソフトウェア | ライセンス | 場所 |
@@ -47,4 +58,4 @@
 
 ## 作成者
 
-指示は kai-kou、実装と検証は Claude Fable 5.2（Anthropic）が行いました。制作と検証には Meta Muse（Meta）も利用しました。ハト、トビ、人、車、樹木の枝葉、鴨川の橋、水面、空、音は、データを使わずにコードで生成しています。
+指示は kai-kou、実装と検証は Claude Fable 5.2（Anthropic）が行いました。制作と検証には Meta Muse（Meta）も利用しました。ハト、トビ、人、車、樹木の枝葉、鴨川の橋、水面、空、音は、データを使わずにコードで生成しています。`?people=asset` を付けた場合だけ、人の一部が上記の人体データに替わります。
