@@ -3,7 +3,8 @@
 import * as THREE from './three.module.min.js';
 import { cityMaterial } from './world.js';
 import { clamp, lerp, rng, TAU, damp, dampAng } from './util.js';
-import { buildPerson, Rig, randomSpec, bakePose } from './human.js';
+import { buildPerson, Rig, randomSpec, bakePose, B } from './human.js';
+import { U } from './world.js';
 
 const IDENT = new THREE.Matrix4();
 // Walking routes are traced from the nav grid, so nobody walks through a house or on the river.
@@ -39,7 +40,7 @@ export class People {
       const mesh = new THREE.SkinnedMesh(g, this.mat); mesh.bind(rig.skeleton, IDENT); mesh.frustumCulled = false; mesh.matrixAutoUpdate = false; mesh.castShadow = Q.tier !== 'low'; mesh.receiveShadow = true; scene.add(mesh);
       const dir = rnd() < 0.5 ? 1 : -1; this.H.push({ i: this.H.length, walk: true, path: p, t: rnd(), dir, off: rr(-1, 1), jog, kim, v: (jog ? rr(2.6, 3.1) : kim ? rr(0.78, 0.95) : rr(1.05, 1.45)) * Math.sqrt(P.s), ph: rr(0, TAU), s: P.s, rig, mesh, yaw: null, x: 0, y: 0, z: 0, turn: 0, turnT: rr(2, 9) }); }
     // people who do not move are posed once, baked on the CPU and merged into one static mesh
-    const parts = [], still = (spec, x, y, z, yaw, pose) => { spec.lod = lod; const P = buildPerson(spec), rig = new Rig(P); rig.root(x, y, z, yaw); pose(rig, P.s); const b = bakePose(P.geometry, rig.matrices()); parts.push({ g: P.geometry, b }); const h = { i: this.H.length, x, y, z, yaw, s: P.s }; this.H.push(h); return h; };
+    const parts = [], still = (spec, x, y, z, yaw, pose) => { spec.lod = lod; const P = buildPerson(spec), rig = new Rig(P); rig.root(x, y, z, yaw); pose(rig, P.s); const b = bakePose(P.geometry, rig.matrices()); parts.push({ g: P.geometry, b }); const h = { i: this.H.length, x, y, z, yaw, s: P.s, rig }; this.H.push(h); return h; };
     // couples sitting at equal intervals on the west bank (a well-known Kamo sight)
     const nC = opts.couples ?? 9; let z = -78, nc = 0; const edgeAt = zz => { let r = null; for (const q of terr) if (!r || Math.abs(q.z - zz) < Math.abs(r.z - zz)) r = q; return r && Math.abs(r.z - zz) < 6 ? r.hi : null; };
     for (; nc < nC && z < 190; z += 7.2) { const e = edgeAt(z); if (e === null) continue; let xe = null; for (let x = e - 1.5; x < e + 3; x += 0.25) { const g0 = nav.ground(x, z), g1 = nav.ground(x + 1.4, z); if (g0 - g1 > 0.38 && nav.cls(x, z) === 0) { xe = x; break; } } if (xe === null && nav.cls(e + 0.3, z) === 0 && nav.ground(e, z) - nav.ground(e + 2.2, z) > 0.25) xe = e + 0.3;   // no clear step: sit at the top of the slope
@@ -57,6 +58,17 @@ export class People {
       const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(P, 3)); g.setAttribute('normal', new THREE.BufferAttribute(N, 3)); g.setAttribute('color', new THREE.BufferAttribute(C, 4)); g.setAttribute('aFace', new THREE.BufferAttribute(F, 4)); g.setAttribute('aBind', new THREE.BufferAttribute(Bd, 3)); g.setIndex(new THREE.BufferAttribute(I, 1)); g.computeBoundingSphere();
       this.still = new THREE.Mesh(g, this.mat); this.still.castShadow = Q.tier !== 'low'; this.still.receiveShadow = true; this.still.matrixAutoUpdate = false; scene.add(this.still); }
     this.n = this.H.length;
+    // ---- where a shoe meets the ground: a soft dark patch under every foot (and under whoever sits), the first thing a pigeon's eye sees of a person.
+    // The sun's shadow alone leaves feet looking as if they hover; real contact always has this small core of occlusion.
+    { const g = new THREE.PlaneGeometry(1, 1); g.rotateX(-Math.PI / 2); const nD = this.H.length * 2 + this.H.filter(h => h.sit).length;
+      // the frame buffer keeps the view depth in its alpha channel (for the depth of field): the patch darkens the colour and leaves alpha alone
+      this.dMat = new THREE.ShaderMaterial({ transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4, blending: THREE.CustomBlending, blendSrc: THREE.SrcAlphaFactor, blendDst: THREE.OneMinusSrcAlphaFactor, blendSrcAlpha: THREE.ZeroFactor, blendDstAlpha: THREE.OneFactor, uniforms: { uA: { value: 0.5 } },
+        vertexShader: `varying vec2 vU; void main(){ vU = position.xz * 2.0; gl_Position = projectionMatrix * modelViewMatrix * instanceMatrix * vec4(position, 1.0); }`,
+        fragmentShader: `precision highp float; varying vec2 vU; uniform float uA; void main(){ float r = length(vU), a = 1.0 - smoothstep(0.15, 1.0, r); gl_FragColor = vec4(vec3(0.0), a * uA); }` });
+      const dm = this.decal = new THREE.InstancedMesh(g, this.dMat, nD); dm.frustumCulled = false; dm.matrixAutoUpdate = false; dm.renderOrder = 2; dm.castShadow = false; dm.receiveShadow = false; scene.add(dm);
+      this._dq = new THREE.Quaternion(); this._ds = new THREE.Vector3(); this._dp = new THREE.Vector3(); this._dm = new THREE.Matrix4(); this._up = new THREE.Vector3(0, 1, 0); let k = 0;
+      for (const h of this.H) { h.d0 = k; k += 2; if (h.sit) { h.dS = k++; } if (!h.walk) { this._feet(h); h.rig = null; } }
+      dm.instanceMatrix.needsUpdate = true; this._dSave = dm.instanceMatrix.array.slice(); this._sv = true; }
     // people who stay put are obstacles for the pigeons (they walk round them, they are not scared by them)
     this.statics = this.H.filter(h => !h.walk).map(h => ({ x: h.x + Math.sin(h.yaw) * (h.sit ? 0.3 : 0), z: h.z + Math.cos(h.yaw) * (h.sit ? 0.3 : 0), y: h.y, r: h.sit ? 0.65 : 0.45, still: true }));
   }
@@ -67,15 +79,23 @@ export class People {
       const p = h.path, len = p.len, s = h.s, Q = p.at(h.t += h.dir * h.v * dt / len, this._pt); if (h.t > 1) { h.t = 1; h.dir = -1; } if (h.t < 0) { h.t = 0; h.dir = 1; }
       const ux = Q.ux, uz = Q.uz, turn = clamp(Math.min(h.t, 1 - h.t) * len / 2.5, 0, 1), side = h.off * Q.w * (0.35 + 0.65 * turn) * h.dir; // keep to one side, and cross over near the ends to turn around
       h.x = Q.x - uz * side; h.z = Q.z + ux * side; h.y = nav.ground(h.x, h.z); const want = Math.atan2(ux * h.dir, uz * h.dir); h.yaw = h.yaw === null ? want : dampAng(h.yaw, want, 5, dt);
-      const Tc = h.jog ? 0.70 : (h.kim ? 0.92 : 1.04) * Math.sqrt(s); h.ph += dt / Tc * TAU; T.push({ x: h.x, z: h.z, y: h.y, r: h.jog ? 3.0 : 1.5, run: h.jog });
+      // the time of one stride follows from the speed: cadence grows with about the 0.42 power of speed, anchored at 119.5 steps a minute at 1.48 m/s (measured on Japanese adults); so a slow walker takes fewer and shorter steps and nobody shares one rhythm. Joggers keep about 164 steps a minute; a kimono shortens the step
+      const Tc = h.jog ? 0.73 : 120 / (119.5 * Math.pow(h.v / Math.sqrt(s) / 1.48, 0.42)) * Math.sqrt(s) * (h.kim ? 0.88 : 1); h.ph += dt / Tc * TAU; T.push({ x: h.x, z: h.z, y: h.y, r: h.jog ? 3.0 : 1.5, run: h.jog });
       // now and then a walker looks aside (at the river, at a shop front)
       h.turnT -= dt; if (h.turnT <= 0) { h.turnT = 3 + 8 * this.rnd(); h.look = h.jog || this.rnd() < 0.45 ? 0 : (this.rnd() - 0.5) * 1.5; } h.turn = damp(h.turn, h.look || 0, 2.5, dt); h.T = Tc; }
     return T; }
+  // the two patches of one person, from where the ankle bones are now; a lifted foot casts a wider, fainter one
+  _feet(h) { const dm = this.decal, nav = this.nav, s = h.s, hide = h.walk && (h.hidden || !h.mesh.visible);
+    for (let k = 0; k < 2; k++) { const e = h.rig.bones[k ? B.ftR : B.ftL].matrixWorld.elements, fx = e[8], fz = e[10], fl = Math.hypot(fx, fz) || 1, x = e[12] + fx / fl * 0.055 * s, z = e[14] + fz / fl * 0.055 * s, gy = nav.ground(x, z), lift = clamp((e[13] - gy - 0.07 * s) / (0.16 * s), 0, 1), w = hide ? 0 : (0.34 + 0.20 * lift) * s * (1 - 0.8 * lift);
+      this._dq.setFromAxisAngle(this._up, Math.atan2(fx, fz)); this._dm.compose(this._dp.set(x, gy + 0.012, z), this._dq, this._ds.set(w, 1, w * 1.55)); dm.setMatrixAt(h.d0 + k, this._dm); }
+    if (h.sit) { const x = h.x - Math.sin(h.yaw) * 0.02, z = h.z - Math.cos(h.yaw) * 0.02; this._dq.setFromAxisAngle(this._up, h.yaw); this._dm.compose(this._dp.set(x, nav.ground(x, z) + 0.012, z), this._dq, this._ds.set(0.95 * s, 1, 0.80 * s)); dm.setMatrixAt(h.dS, this._dm); } }
   pose() { const app = this.app, cam = app.camera, pano = !!app.pano;
     if (!pano) { cam.updateMatrixWorld(); this._pm.multiplyMatrices(cam.projectionMatrix, this._pm.copy(cam.matrixWorld).invert()); this._fr.setFromProjectionMatrix(this._pm); }
     for (const h of this.H) { if (!h.walk) continue; if (h.hidden || h.yaw === null) { h.mesh.visible = false; continue; }
       const d = this._v.set(h.x - cam.position.x, h.y + 0.9 - cam.position.y, h.z - cam.position.z).length(); let vis = d < 420; if (vis && !pano) { this._sp.center.set(h.x, h.y + 0.9, h.z); this._sp.radius = 4; vis = this._fr.intersectsSphere(this._sp); }
-      h.mesh.visible = vis; if (!vis) continue; h.rig.root(h.x, h.y, h.z, h.yaw); h.rig.walk(h.ph, h.v, h.T, h.jog, { turn: h.turn, nod: h.jog ? 0 : 0.03, arm: h.kim ? 0.3 : 1, bend: h.kim ? 0.25 : 0 }); } }
+      h.mesh.visible = vis; if (!vis) continue; h.rig.root(h.x, h.y, h.z, h.yaw); h.rig.walk(h.ph, h.v, h.T, h.jog, { turn: h.turn, nod: h.jog ? 0 : 0.03, arm: h.kim ? 0.3 : 1, bend: h.kim ? 0.25 : 0 }); }
+    if (this.decal) { for (const h of this.H) if (h.walk && h.rig) this._feet(h); this.decal.instanceMatrix.needsUpdate = true; const sv = !this.still || this.still.visible; if (sv !== this._sv) { this._sv = sv; const a = this.decal.instanceMatrix.array; for (const h of this.H) if (!h.walk) { const n = h.sit ? 3 : 2; for (let i = h.d0 * 16; i < (h.d0 + n) * 16; i++) a[i] = sv ? this._dSave[i] : 0; } }   /* the people who stay put go home at night, and their patches with them */
+      this.dMat.uniforms.uA.value = 0.72 * (1 - 0.45 * U.uNight.value); } }
 }
 
 // ------------------------------------------------------------------ traffic

@@ -1,0 +1,32 @@
+<!doctype html><meta charset="utf-8"><title>asset-based people test (development only)</title><style>html,body{margin:0;background:#888}canvas{display:block}</style><canvas id="c"></canvas>
+<script type="importmap">{ "imports": { "three": "./js/three.module.min.js" } }</script>
+<script type="module">
+// Verification only: a scanned-and-textured game avatar (Microsoft Rocketbox, MIT) beside the piece's procedural person, same lights.
+import * as THREE from 'three';
+import { FBXLoader } from './_dev/loaders/FBXLoader.js';
+import { buildPerson, Rig, randomSpec, bakePose } from './js/human.js';
+import { cityMaterial, U } from './js/world.js';
+import { rng } from './js/util.js';
+const qs = new URLSearchParams(location.search), num = (k, d) => qs.get(k) ? qs.get(k).split(',').map(Number) : d, K = qs.get('tex') === '1k' ? '_1k' : '';
+const r = new THREE.WebGLRenderer({ canvas: document.getElementById('c'), antialias: true }); r.setSize(innerWidth, innerHeight); r.shadowMap.enabled = true; r.shadowMap.type = THREE.PCFSoftShadowMap; r.toneMapping = THREE.ACESFilmicToneMapping; r.toneMappingExposure = 0.9;
+const sc = new THREE.Scene(); sc.background = new THREE.Color(0.55, 0.68, 0.86);
+const sd = num('sun', [0.5, 0.75, 0.45]), sun = new THREE.DirectionalLight(0xfff1dc, 3.2); sun.position.set(sd[0] * 20, sd[1] * 20, sd[2] * 20); sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048); Object.assign(sun.shadow.camera, { left: -5, right: 5, top: 5, bottom: -5, near: 1, far: 50 }); sun.shadow.bias = -0.0004; sc.add(sun);
+sc.add(new THREE.HemisphereLight(0xbcd3f2, 0x8a7f70, 1.15)); U.uSunDir.value.set(sd[0], sd[1], sd[2]).normalize(); U.uSunCol.value.set(1, 0.945, 0.86); U.uSunI.value = 3.2;
+const gm = new THREE.MeshStandardMaterial({ color: 0x9a948a, roughness: 0.95 }), gnd = new THREE.Mesh(new THREE.PlaneGeometry(60, 60), gm); gnd.rotation.x = -Math.PI / 2; gnd.receiveShadow = true; sc.add(gnd);
+{ const dt = new THREE.DepthTexture(4, 4); dt.compareFunction = THREE.LessEqualCompare; const rt = new THREE.WebGLRenderTarget(4, 4, { depthTexture: dt }); r.setRenderTarget(rt); r.clear(); r.setRenderTarget(null); U.uBSh.value = dt; U.uBShP.value.set(0, 0.25, 0, 0); }
+// the procedural person
+{ const P = buildPerson(randomSpec(rng(+(qs.get('seed') || 11)), 'walk')), rig = new Rig(P); rig.root(-0.6, 0, 0, 0); rig.stand({ turn: 0.1, nod: 0.02, shift: 0.6, lean: 0.02 }); const g = P.geometry, b = bakePose(g, rig.matrices()), G = new THREE.BufferGeometry(); G.setAttribute('position', new THREE.BufferAttribute(b.position, 3)); G.setAttribute('normal', new THREE.BufferAttribute(b.normal, 3)); G.setAttribute('color', g.attributes.color); G.setAttribute('aFace', g.attributes.aFace); G.setAttribute('aBind', g.attributes.position); G.setIndex(g.index);
+  const m = new THREE.Mesh(G, cityMaterial('cloth', { tier: 'high', pbr: true }, { rough: 0.9 })); m.castShadow = m.receiveShadow = true; sc.add(m); window.__proc = { tris: g.index.count / 3 }; }
+const tl = new THREE.TextureLoader(), tex = (n, srgb) => { const t = tl.load('./_dev/rb/' + n + K + '.webp'); t.colorSpace = srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace; t.flipY = true; return t; };
+const t0 = performance.now(); let left = 2; window.__rb = [];
+for (const [file, pre, x] of [['Female_Adult_01', 'f001', 0.35], ['Male_Adult_01', 'm002', 1.25]]) new FBXLoader().load('./_dev/rb/' + file + '.fbx', o => {
+  let tris = 0, bones = 0; const mats = new Set(); o.traverse(m => { if (m.isBone) bones++; if (!m.isMesh) return; tris += (m.geometry.index ? m.geometry.index.count : m.geometry.attributes.position.count) / 3; m.castShadow = m.receiveShadow = true; m.frustumCulled = false;
+    const fix = mm => { mats.add(mm.name); const n = mm.name.toLowerCase(), part = n.includes('head') ? 'head' : n.includes('opac') ? 'opacity' : 'body', M = new THREE.MeshStandardMaterial({ map: tex(pre + '_' + part + '_color', true), roughness: 0.62, metalness: 0 });
+      if (part !== 'opacity') { M.normalMap = tex(pre + '_' + part + '_normal', false); } else { M.transparent = false; M.alphaTest = 0.5; M.side = THREE.DoubleSide; } return M; };
+    m.material = Array.isArray(m.material) ? m.material.map(fix) : fix(m.material); });
+  const box = new THREE.Box3().setFromObject(o), h = box.max.y - box.min.y, k = (pre === 'f001' ? 1.62 : 1.74) / h; o.scale.multiplyScalar(k); o.position.set(x, -box.min.y * k, 0); sc.add(o);
+  window.__rb.push({ file, tris, bones, mats: [...mats], height_units: +h.toFixed(1), ms: Math.round(performance.now() - t0) }); if (--left === 0) setTimeout(() => { window.__ready = true; }, 1500); }, undefined, e => { window.__err = String(e); });
+const c = num('cam', [0.3, 1.25, 4.2, 0.3, 0.9, 0, 40]), cam = new THREE.PerspectiveCamera(c[6], innerWidth / innerHeight, 0.05, 200); cam.position.set(c[0], c[1], c[2]); cam.lookAt(c[3], c[4], c[5]);
+(function loop() { r.render(sc, cam); window.__info = { tris: r.info.render.triangles, calls: r.info.render.calls }; requestAnimationFrame(loop); })();
+window.addEventListener('error', e => { window.__err = String(e.message); });
+</script>

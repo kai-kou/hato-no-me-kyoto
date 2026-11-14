@@ -34,6 +34,7 @@ tools/run_checks.sh
 | --- | --- | --- |
 | `jscheck.sh` | `tools/jscheck.sh [アプリの場所]` | ES モジュールの構文チェック。`node --check` は `.js` をモジュールとして解釈しないので、`.mjs` に写して調べる。あわせて、three.js のシェーダに差し込むときの置換キー 13 個が `three.module.min.js` の中にあるかを照合する（three.js の更新でキーの名前が変わると、エラーにならずに見た目だけが変わるため） |
 | `prof.py` | `python3 tools/prof.py [秒] "<クエリ>" ...` | 描画中のメインスレッドの CPU プロファイルを取り、ファイル別・関数別に集計する。GPU 側の描画時間は含まれない |
+| `people.py`、`people_asset.py` | `python3 tools/people.py <出力> "<クエリ>"` | 人だけを無地の床に並べて撮る（街を読み込まないので速い）。`tools/dev/_people.html` を作業用の app ディレクトリに置いて使う。`people_asset.py` と `tools/dev/_rb.html` は、読み込んだ人体データと並べる検証用で、three.js の FBXLoader と Rocketbox のデータを `_dev/` に別途置く必要がある（リポジトリには含めていない） |
 | `bench/` | `node tools/bench/bench.mjs`、`python3 tools/bench/tickprof.py "<クエリ>"` | JavaScript と Rust（WebAssembly）の比較と、シミュレーション 1 ステップの内訳。Rust は `cd tools/bench/rust && cargo build --release --target wasm32-unknown-unknown`（SIMD 版は `RUSTFLAGS="-C target-feature=+simd128"` と `--target-dir target_simd`）で先にビルドする。結果は [docs/perf-rust.md](../docs/perf-rust.md) |
 | `shoot.py` | `python3 tools/shoot.py <出力の接頭辞> "<クエリ>" [--js ファイルまたは式] [--size 幅x高さ] [--wait 秒] [--mobile]` | 静止画を撮り、描画命令数やコンソールのエラーを出す。クエリは複数並べられ、`--js` は直前のクエリに付く |
 | `strip.py` | `python3 tools/strip.py <出力.png> "<クエリ>" [コマ数] [幅x高さ] [切り抜き]` | 連続したコマを 1 枚に並べる。動きの確認用 |

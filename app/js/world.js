@@ -4,7 +4,7 @@ import { clamp, lerp, smooth, loadPak, loadTexPak, fetchBytes, patchMaterial, GL
 
 // ------------------------------------------------------------------ shared uniforms
 export const U = {
-  uTime: { value: 0 }, uSunDir: { value: new THREE.Vector3(0.4, 0.5, 0.3).normalize() }, uSunCol: { value: new THREE.Color(1, 0.9, 0.8) },
+  uTime: { value: 0 }, uSunDir: { value: new THREE.Vector3(0.4, 0.5, 0.3).normalize() }, uSunCol: { value: new THREE.Color(1, 0.9, 0.8) }, uSunI: { value: 1 },
   uHor: { value: new THREE.Color(0.6, 0.7, 0.9) }, uZen: { value: new THREE.Color(0.1, 0.3, 0.7) }, uNight: { value: 0 }, uWet: { value: 0 },
   uOrtho: { value: null }, uOrthoRect: { value: new THREE.Vector4(0, 0, 1, 1) }, uOrthoOn: { value: 0 },   // the aerial photograph of the surroundings, also used to colour the roofs of the context buildings
   uLampTex: { value: null }, uLampRect: { value: new THREE.Vector4(0, 0, 1, 1) }, uLampCol: { value: new THREE.Color(1.0, 0.68, 0.40) },
@@ -259,7 +259,7 @@ ${turfBlk}
     if (std) fNormal = `normal = hPerturb(-vViewPosition, normal, hBump, 0.02);`;
   } else if (kind === 'cloth') {
     // people: aFace.w = material (0 cloth, 1 skin, 2 hair, 3 shoe, 4 sole, 5 open jacket, 6 kimono); patterns are anchored to the bind pose so they move with the body
-    fAlb += `{ float mt = floor(vFace.w + 0.5); vec3 bp = vBind; float fw = max(max(fwidth(bp.x), fwidth(bp.y)), fwidth(bp.z)); vec2 tp = vec2(bp.x + bp.z * 0.7, bp.y);
+    fAlb += `{ float mt = floor(vFace.w + 0.5); hMt = mt; vec3 bp = vBind; float fw = max(max(fwidth(bp.x), fwidth(bp.y)), fwidth(bp.z)); vec2 tp = vec2(bp.x + bp.z * 0.7, bp.y);
       if (mt < 0.5 || mt > 4.5) {
         if (mt > 5.5) { // kimono: a scatter of small flowers, lighter than the cloth
           vec2 kp = vec2(atan(bp.x, bp.z) * 0.17, bp.y) / (0.085 * vFace.y), ki = floor(kp), kf = fract(kp) - 0.5; float kr = h21(ki), kd = length(kf - (vec2(h21(ki + 3.7), h21(ki + 9.1)) - 0.5) * 0.5);
@@ -275,7 +275,8 @@ ${turfBlk}
         if (vFace.z > 0.0) { vec2 q = vFace.xy; float k = ss(0.30, 0.62, vFace.z), ax = abs(q.x), bx = ax - 0.42;
           vec2 ey = vec2(ax - 0.40, q.y - 0.045); float eh = 0.047 * max(0.0, 1.0 - pow(ey.x / 0.178, 2.0)) + 0.0005, eo = (1.0 - ss(0.80, 1.0, abs(ey.y + 0.004) / eh)) * step(abs(ey.x), 0.178);   // almond opening
           float ir = length(ey / vec2(0.078, 0.050)), iris = (1.0 - ss(0.86, 1.0, ir)) * eo, pup = (1.0 - ss(0.36, 0.46, ir)) * eo, hi = (1.0 - ss(0.10, 0.20, length((ey - vec2(sign(q.x) * 0.024 * sign(q.x) - 0.022, 0.016)) / vec2(0.078, 0.050)))) * eo;
-          float lash = (1.0 - ss(0.0, 0.016, abs(ey.y + 0.004 - eh * 0.96))) * step(abs(ey.x), 0.20) * step(0.0, ey.y + 0.02), eye = 0.0, wht = 0.0;
+          float ek = 1.0 - ss(0.0011, 0.0032, fw);   /* how much of the eye's fine drawing survives at this distance: a face whose eyes are sharper than everything around them is what reads as a doll (the mismatch account of the uncanny valley, Kätsyri et al. 2015) */
+          hi *= ek; float lash = (1.0 - ss(0.0, 0.016, abs(ey.y + 0.004 - eh * 0.96))) * step(abs(ey.x), 0.20) * step(0.0, ey.y + 0.02) * (0.45 + 0.55 * ek), eye = 0.0, wht = 0.0;
           float lid = 1.0 - ss(0.4, 1.25, length(vec2(ax - 0.40, q.y - 0.12) / vec2(0.27, 0.12)));
           float brow = 1.0 - ss(0.70, 1.10, length(vec2(bx, q.y - 0.245 + 0.9 * bx * bx - 0.04 * bx) / vec2(0.215, 0.034)));
           float mouth = 1.0 - ss(0.70, 1.10, length(vec2(q.x, q.y + 0.545) / vec2(0.26, 0.030)));
@@ -283,7 +284,7 @@ ${turfBlk}
           float nost = 1.0 - ss(0.5, 1.1, length(vec2(ax - 0.085, q.y + 0.335) / vec2(0.055, 0.030)));
           float cheek = 1.0 - ss(0.2, 1.1, length(vec2(ax - 0.52, q.y + 0.22) / vec2(0.30, 0.22)));
           vec3 c = diffuseColor.rgb; c = mix(c, c * vec3(1.04, 0.86, 0.84), cheek * 0.35 * k); c = mix(c, c * vec3(0.93, 0.60, 0.58), lip * 0.55 * k); c *= 1.0 - lid * 0.26 * k; c = mix(c, vec3(0.030, 0.024, 0.020), brow * 0.62 * k);
-          c = mix(c, vec3(0.66, 0.63, 0.60) * (0.62 + 0.38 * ss(-0.5, 0.6, -ey.y / eh)), eo * k); c = mix(c, vec3(0.085, 0.050, 0.032) * (1.0 + 0.9 * ss(0.45, 0.95, ir)), iris * k); c = mix(c, vec3(0.008), pup * k); c = mix(c, vec3(0.85), hi * 0.8 * k); c = mix(c, vec3(0.020, 0.016, 0.014), lash * 0.85 * k); c = mix(c, c * vec3(0.42, 0.26, 0.26), mouth * 0.8 * k); c *= 1.0 - nost * 0.45 * k; diffuseColor.rgb = c; }
+          c = mix(c, mix(c * 0.55, vec3(0.50, 0.47, 0.45) * (0.50 + 0.50 * ss(-0.5, 0.6, -ey.y / eh)), 0.35 + 0.65 * ek), eo * k);   /* the white sits in the shade of the lids and brow */ c = mix(c, vec3(0.085, 0.050, 0.032) * (1.0 + 0.9 * ss(0.45, 0.95, ir)), iris * k); c = mix(c, vec3(0.008), pup * k); c = mix(c, vec3(0.85), hi * 0.8 * k); c = mix(c, vec3(0.020, 0.016, 0.014), lash * 0.85 * k); c = mix(c, c * vec3(0.42, 0.26, 0.26), mouth * 0.8 * k); c *= 1.0 - nost * 0.45 * k; diffuseColor.rgb = c; }
         else if (vFace.z < -1.5) { float fy = ss(0.50, 0.62, vFace.y), g = abs(fract(vFace.x * 2.0 + 0.5) - 0.5); diffuseColor.rgb *= 1.0 - 0.5 * fy * (1.0 - ss(0.03, 0.10, g)) * step(abs(vFace.x), 0.8); }
       } else if (mt < 2.5) { float a = atan(bp.x, bp.z); float st = vnoise(vec2(a * 26.0, bp.y * 16.0)) * 0.6 + vnoise(vec2(a * 80.0, bp.y * 34.0)) * 0.4 * OCT(900.0); diffuseColor.rgb *= 0.62 + 0.8 * st; hBump = st * 1.6; }
       else if (mt < 3.5) { diffuseColor.rgb *= 1.0 + (vnoise(tp * 160.0) - 0.5) * 0.12 * OCT(160.0); }
@@ -329,10 +330,20 @@ ${turfBlk}
         diffuseColor.rgb = mix(diffuseColor.rgb, rc, roof); }
       if (abs(hWN.y) < 0.35) { vec2 hn = normalize(hWN.xz + 1e-5); vec2 wp = vec2(dot(vWPos.xz, vec2(-hn.y, hn.x)) / 2.4, (vWPos.y + 1.2) / 3.2), f = fract(wp); float fww = max(fwidth(wp.x), fwidth(wp.y));
         float m = ss(0.16, 0.24, f.x) * (1.0 - ss(0.76, 0.84, f.x)) * ss(0.28, 0.36, f.y) * (1.0 - ss(0.70, 0.78, f.y)) * (1.0 - ss(0.25, 0.7, fww)); diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.05, 0.06, 0.075), m * 0.5); } }\n`;
+  if (kind === 'cloth') fEm += `{ vec3 Lv = normalize((viewMatrix * vec4(uSunDir, 0.0)).xyz), Vn = normalize(vViewPosition); float ndl = dot(normal, Lv), nv = clamp(dot(normal, Vn), 0.0, 1.0), day = (1.0 - uNight) * hSunK * uSunI * 0.3183;
+      if (hMt > 0.5 && hMt < 1.5) {   // skin: light scattered under the surface comes back out past the terminator, and redder than it went in (wrap lighting with a colour shift, GPU Gems ch. 16; Penner 2011)
+        float w = 0.30; totalEmissiveRadiance += diffuseColor.rgb * uSunCol * vec3(1.0, 0.40, 0.28) * (max(0.0, (ndl + w) / (1.0 + w)) - max(0.0, ndl)) * day * 0.85; }
+      else if (hMt > 1.5 && hMt < 2.5) {   // hair: two highlights along the strands, a white one and a wider one in the hair's own colour, shifted apart along the strand (Scheuermann 2004)
+        vec3 up = normalize((viewMatrix * vec4(0.0, 1.0, 0.0, 0.0)).xyz), T = normalize(cross(normal, cross(up, normal)) + 1e-4), Hh = normalize(Lv + Vn);
+        float t1 = dot(normalize(T + normal * 0.10), Hh), t2 = dot(normalize(T - normal * 0.16), Hh), lit = clamp(ndl * 0.75 + 0.25, 0.0, 1.0) * day * 3.1416;
+        totalEmissiveRadiance += (uSunCol * 0.10 * pow(sqrt(max(0.0, 1.0 - t1 * t1)), 90.0) + (diffuseColor.rgb * 3.0 + 0.02) * uSunCol * 0.35 * pow(sqrt(max(0.0, 1.0 - t2 * t2)), 16.0)) * lit; }
+      else if (hMt < 0.5 || hMt > 4.5) {   // cloth: the fibres stand off the surface, so the fall-off towards the shadow is softer than Lambert's, and there is a soft sheen at grazing angles ("Charlie" distribution, Estevez & Kulla 2017, in the form Filament uses)
+        float nl = max(ndl, 0.0), w = 0.22; vec3 Hh = normalize(Lv + Vn); float nh = clamp(dot(normal, Hh), 0.0, 1.0), s2 = 1.0 - nh * nh, D = 6.0 * s2 * s2 / 6.2832, Vv = 1.0 / (4.0 * (nl + nv - nl * nv) + 1e-3);
+        totalEmissiveRadiance += diffuseColor.rgb * uSunCol * (max(0.0, (ndl + w) / (1.0 + w)) - nl) * day * 0.55 + (diffuseColor.rgb * 0.6 + 0.03) * uSunCol * D * min(Vv, 4.0) * nl * day * 3.1416 * 0.10; } }`;
   fEm += `{ float fr = pow(1.0 - clamp(dot(normal, normalize(vViewPosition)), 0.0, 1.0), 4.0); totalEmissiveRadiance += uHor * fr * 0.11 * (1.0 - uNight); }`;
-  return { key: kind + (std ? 's' : 'l') + (hi && kind === 'bld' ? 'h' : ''), sunK: kind !== 'ctx', vPars: V_PARS + (kind === 'grass' ? ' uniform float uTime;' : '') + (kind === 'cloth' ? ' attribute vec4 aFace; attribute vec3 aBind; varying vec4 vFace; varying vec3 vBind;' : '') + (kind === 'car' ? ' varying vec3 vCar; varying vec3 vTint;' : ''), vBegin: kind === 'grass' ? GRASS_VB : kind === 'cloth' ? 'vFace = aFace; vBind = aBind;' : kind === 'car' ? 'vCar = position;\n#ifdef USE_INSTANCING_COLOR\n vTint = instanceColor.xyz;\n#else\n vTint = vec3(1.0);\n#endif' : undefined, vEnd: V_END, fPars: F_PARS + (kind === 'cloth' ? 'varying vec4 vFace; varying vec3 vBind;\n' : '') + (kind === 'car' ? 'varying vec3 vCar; varying vec3 vTint;\n' : '') + (kind === 'bld' ? 'uniform vec2 uTexSize; uniform float uLift;\n' + (hi ? HCR : '') : '') + (kind === 'frnp' ? 'uniform vec3 uTint; uniform float uGrain;\n' : '') + (kind === 'ground' ? 'uniform sampler2D uNavTex; uniform vec4 uNavRect; uniform vec3 uSunDir;\n' : ''), fAlbedo: fAlb, fRough, fNormal, fEmissive: fEm, fAO: F_AO, fFinal: F_FINAL };
+  return { key: kind + (std ? 's' : 'l') + (hi && kind === 'bld' ? 'h' : ''), sunK: kind !== 'ctx', vPars: V_PARS + (kind === 'grass' ? ' uniform float uTime;' : '') + (kind === 'cloth' ? ' attribute vec4 aFace; attribute vec3 aBind; varying vec4 vFace; varying vec3 vBind;' : '') + (kind === 'car' ? ' varying vec3 vCar; varying vec3 vTint;' : ''), vBegin: kind === 'grass' ? GRASS_VB : kind === 'cloth' ? 'vFace = aFace; vBind = aBind;' : kind === 'car' ? 'vCar = position;\n#ifdef USE_INSTANCING_COLOR\n vTint = instanceColor.xyz;\n#else\n vTint = vec3(1.0);\n#endif' : undefined, vEnd: V_END, fPars: F_PARS + (kind === 'cloth' ? 'varying vec4 vFace; varying vec3 vBind; uniform vec3 uSunDir, uSunCol; uniform float uSunI; float hMt = 0.0;\n' : '') + (kind === 'car' ? 'varying vec3 vCar; varying vec3 vTint;\n' : '') + (kind === 'bld' ? 'uniform vec2 uTexSize; uniform float uLift;\n' + (hi ? HCR : '') : '') + (kind === 'frnp' ? 'uniform vec3 uTint; uniform float uGrain;\n' : '') + (kind === 'ground' ? 'uniform sampler2D uNavTex; uniform vec4 uNavRect; uniform vec3 uSunDir;\n' : ''), fAlbedo: fAlb, fRough, fNormal, fEmissive: fEm, fAO: F_AO, fFinal: F_FINAL };
 }
-const sharedU = () => ({ uHor: U.uHor, uBSh: U.uBSh, uBShM: U.uBShM, uBShP: U.uBShP, uBAO: U.uBAO, uBAOM: U.uBAOM, uBAOP: U.uBAOP, uTime: U.uTime, uNight: U.uNight, uWet: U.uWet, uLampTex: U.uLampTex, uLampRect: U.uLampRect, uLampCol: U.uLampCol, uReflTex: U.uReflTex, uReflVP: U.uReflVP, uReflOn: U.uReflOn, uReflY: U.uReflY, uOrtho: U.uOrtho, uOrthoRect: U.uOrthoRect, uOrthoOn: U.uOrthoOn });
+const sharedU = () => ({ uSunDir: U.uSunDir, uSunCol: U.uSunCol, uSunI: U.uSunI, uHor: U.uHor, uBSh: U.uBSh, uBShM: U.uBShM, uBShP: U.uBShP, uBAO: U.uBAO, uBAOM: U.uBAOM, uBAOP: U.uBAOP, uTime: U.uTime, uNight: U.uNight, uWet: U.uWet, uLampTex: U.uLampTex, uLampRect: U.uLampRect, uLampCol: U.uLampCol, uReflTex: U.uReflTex, uReflVP: U.uReflVP, uReflOn: U.uReflOn, uReflY: U.uReflY, uOrtho: U.uOrtho, uOrthoRect: U.uOrthoRect, uOrthoOn: U.uOrthoOn });
 export function cityMaterial(kind, Q, opts = {}) {
   const M = Q.pbr ? THREE.MeshStandardMaterial : THREE.MeshLambertMaterial; const p = { vertexColors: true, ...(opts.params || {}) };
   if (Q.pbr) { p.roughness = opts.rough ?? 0.86; p.metalness = 0; p.envMapIntensity = opts.env ?? 0.55; }
@@ -394,7 +405,7 @@ export class Env {
     U.uZen.value.setRGB(L(1, 0), L(1, 1), L(1, 2)); U.uHor.value.setRGB(L(2, 0), L(2, 1), L(2, 2)); U.uSunCol.value.setRGB(L(3, 0), L(3, 1), L(3, 2));
     this.sunI = lerp(a[4], b[4], t); const hemiI = lerp(a[5], b[5], t); this.exposure = lerp(a[6], b[6], t);
     U.uSunDir.value.copy(sp.dir); const night = 1 - smooth(-9, -1.5, eDeg); U.uNight.value = night; this.night = night; this.elev = eDeg;
-    this.sun.color.copy(U.uSunCol.value); this.sun.intensity = this.sunI; this.sky.material.uniforms.uSunI.value = this.sunI;
+    this.sun.color.copy(U.uSunCol.value); this.sun.intensity = this.sunI; this.sky.material.uniforms.uSunI.value = this.sunI; U.uSunI.value = this.sunI;
     this.moon.intensity = 0.16 * night; this.moon.position.copy(U.uMoonDir.value).multiplyScalar(300);
     const day = smooth(0.4, 2.8, this.sunI); this.exposure *= lerp(1.0, 1.24, day); this.hemi.color.copy(U.uZen.value).lerp(U.uHor.value, 0.55).multiplyScalar(lerp(2.6, 1.9, day)); this.hemi.groundColor.copy(U.uHor.value).multiplyScalar(0.55).lerp(new THREE.Color(0.30, 0.26, 0.21).multiplyScalar(this.sunI * 0.48 + 0.02), 0.5); this.hemi.intensity = hemiI;
     this.scene.fog.color.copy(U.uHor.value).multiplyScalar(0.8).lerp(U.uZen.value, 0.25); this.scene.fog.density = lerp(0.00055, 0.0011, smooth(8, -2, eDeg));
