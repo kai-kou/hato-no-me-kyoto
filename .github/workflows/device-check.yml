@@ -1,0 +1,93 @@
+# Opens the app on a macOS runner (Chrome, WebKit, Safari in the iOS Simulator), lets it measure itself and
+# writes the result to issue #18. Start it by changing tools/devicecheck/RUN, or by hand from the Actions tab.
+name: device-check
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['tools/devicecheck/RUN']
+permissions:
+  contents: write
+  issues: write
+concurrency:
+  group: device-check
+  cancel-in-progress: true
+jobs:
+  mac:
+    runs-on: macos-15
+    timeout-minutes: 80
+    env:
+      ISSUE: 18
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Tools
+        run: |
+          pip install -q playwright
+          python -m playwright install webkit chromium
+      - name: Machine
+        run: |
+          sw_vers
+          system_profiler SPDisplaysDataType | sed -n 1,25p
+          system_profiler SPHardwareDataType | grep -E "Model|Chip|Memory|Cores" || true
+          xcodebuild -version || true
+      - name: Chrome
+        continue-on-error: true
+        timeout-minutes: 20
+        run: python tools/devicecheck/desktop.py --target mac-chrome --browser chrome --out out/mac-chrome
+      - name: WebKit
+        continue-on-error: true
+        timeout-minutes: 20
+        run: python tools/devicecheck/desktop.py --target mac-webkit --browser webkit --out out/mac-webkit
+      - name: Safari in the iOS Simulator
+        continue-on-error: true
+        timeout-minutes: 30
+        run: python tools/devicecheck/ios.py --out out/ios-sim
+      - name: Results
+        if: always()
+        run: |
+          RUN="run-${{ github.run_number }}"
+          mkdir -p "pub/$RUN"
+          for d in out/*; do
+            [ -d "$d" ] || continue
+            for f in "$d"/*.png; do
+              [ -f "$f" ] || continue
+              sips -s format jpeg -s formatOptions 72 -Z 1280 "$f" --out "pub/$RUN/$(basename "${f%.png}").jpg" > /dev/null
+            done
+            [ -f "$d/reports.jsonl" ] && cp "$d/reports.jsonl" "pub/$RUN/$(basename "$d").jsonl"
+          done
+          BASE="https://raw.githubusercontent.com/${{ github.repository }}/device-check-results/$RUN"
+          {
+            echo "## 自動計測 $RUN（$(date -u '+%Y-%m-%d %H:%M') UTC、コミット ${GITHUB_SHA:0:7}）"
+            echo
+            echo "ランナー: $(sw_vers -productName) $(sw_vers -productVersion)／$(system_profiler SPDisplaysDataType | grep -m1 'Chipset Model' | sed 's/^ *//')"
+            echo
+            python tools/devicecheck/summarize.py out/mac-chrome out/mac-webkit out/ios-sim
+            echo "### 画面"
+            echo
+            for t in mac-chrome mac-webkit ios-sim; do
+              for c in eye_day tele_day eye_night tele_day_asset; do
+                [ -f "pub/$RUN/$t--$c.jpg" ] && echo "<img src=\"$BASE/$t--$c.jpg\" width=\"260\" alt=\"$t $c\">"
+              done
+              echo
+            done
+            echo "数値は作品自身が 1 秒ごとに出す 1 コマの平均です。iOS はシミュレーターで、実機ではありません。"
+          } > "pub/$RUN/results.md"
+          cat "pub/$RUN/results.md"
+      - name: Publish pictures and reports
+        if: always()
+        run: |
+          RUN="run-${{ github.run_number }}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git fetch -q origin device-check-results; then git worktree add -q res FETCH_HEAD && git -C res checkout -q -B device-check-results; else git worktree add -q --detach res && git -C res checkout -q --orphan device-check-results && git -C res rm -rfq . ; fi
+          cp -R "pub/$RUN" res/
+          git -C res add -A
+          git -C res commit -q -m "device check $RUN"
+          git -C res push -q origin device-check-results
+      - name: Write to the issue
+        if: always()
+        run: gh issue comment "$ISSUE" --repo "${{ github.repository }}" --body-file "pub/run-${{ github.run_number }}/results.md"
