@@ -41,7 +41,7 @@ jobs:
       - name: WebKit
         continue-on-error: true
         timeout-minutes: 20
-        run: python tools/devicecheck/desktop.py --target mac-webkit --browser webkit --out out/mac-webkit
+        run: python tools/devicecheck/desktop.py --target mac-webkit --browser webkit --out out/mac-webkit --warm
       - name: Safari in the iOS Simulator
         continue-on-error: true
         timeout-minutes: 30

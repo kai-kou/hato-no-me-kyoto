@@ -24,7 +24,7 @@ for t, rs in R.items():
         r = rs.get(label); P = dict(kv.split('=') for kv in q.split('&'))
         name = '%s・%s%s' % (NAME.get(P['m'], P['m']), '夜' if P['t'] == '20' else '昼', '・読み込みデータの人' if P.get('people') else '') + ('・ハトの影なし' if P.get('nobsh') else '') + ('・画質' + {'high': '高', 'low': '軽'}[P['q']] + '指定' if P.get('q') else '')
         if r is None: L.append('| %s | 報告なし | | | | | | | | | | |' % name); continue
-        if r.get('failed'): L.append('| %s | 失敗: %s %s | | | | | | | | | | %d |' % (name, r['failed'], (r.get('text') or '')[:60], len(r.get('errs') or []))); continue
+        if r.get('failed'): L.append('| %s | 失敗: %s %s | | | | | | | | | | %d |' % (name, r['failed'], (r.get('text') or '')[:200].replace('|', '/'), len(r.get('errs') or []))); continue
         m = r.get('median')
         L.append('| %s | %s ms | %s ms | %s fps | %d%% | %s | %s | %s | %s | %s | %s 秒 | %d |' % (name, m, r.get('max'), round(1000 / m) if m else '-', round(r['scale'] * r['drs'] * 100), 'x'.join(str(v) for v in r['canvas']),
                  {'high': '高', 'mid': '中', 'low': '軽'}.get(r['tier'], r['tier']), 'あり' if r['lite'] else 'なし', r['calls'], format(r['tris'], ','), r['load'], len(r.get('errs') or [])))
