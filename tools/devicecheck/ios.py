@@ -4,7 +4,7 @@
 # usage: python3 tools/devicecheck/ios.py --out DIR [--device "iPhone 16"]
 import argparse, json, os, re, subprocess, sys, time
 HERE = os.path.dirname(os.path.abspath(__file__)); sys.path.insert(0, HERE)
-from cases import CASES, url, wait_report
+from cases import CASES, DIAG, url, wait_report
 ap = argparse.ArgumentParser(); ap.add_argument('--out', required=True); ap.add_argument('--device', default=''); ap.add_argument('--port', type=int, default=8793); ap.add_argument('--only', default=''); a = ap.parse_args()
 os.makedirs(a.out, exist_ok=True)
 sim = lambda *x, **kw: subprocess.run(['xcrun', 'simctl'] + list(x), capture_output=True, text=True, **kw)
@@ -23,7 +23,7 @@ json.dump({'device': dev['name'], 'runtime': rt.split('.')[-1]}, open(os.path.jo
 srv = subprocess.Popen([sys.executable, os.path.join(HERE, 'serve.py'), '--port', str(a.port), '--out', a.out]); time.sleep(1.2)
 try:
     sim('boot', U); print(sim('bootstatus', U, '-b', timeout=600).stdout[-300:], flush=True)
-    for label, query in CASES:
+    for label, query in CASES + DIAG:
         if a.only and label not in a.only.split(','): continue
         rid = 'ios-sim--' + label; r0 = sim('openurl', U, url(a.port, 'ios-sim', label, query))
         if r0.returncode: print(rid, 'openurl failed:', r0.stderr[:200], flush=True)

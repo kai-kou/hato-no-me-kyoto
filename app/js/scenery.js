@@ -1,7 +1,7 @@
 // Scenery generated in code where PLATEAU has no geometry: trees (positions from PLATEAU vegetation + the Kamo east-bank row seen in the aerial photo)
 // and the Kamo bridges (footprints read from the aerial photo, heights from the terrain model).
 import * as THREE from './three.module.min.js';
-import { U, cityMaterial } from './world.js';
+import { U, cityMaterial, F_SAFE } from './world.js';
 import { patchMaterial, GLSL_NOISE, rng, clamp, lerp, TAU } from './util.js';
 
 const V3 = (x, y, z) => new THREE.Vector3(x, y, z);
@@ -47,7 +47,7 @@ const LEAF_FE = `{ vec3 vd = normalize(vWPos - cameraPosition); totalEmissiveRad
 
 function leafMaterials(Q) {
   const uni = { uTime: U.uTime, uWind: { value: new THREE.Vector2(0.8, 0.35) }, uSunDir: U.uSunDir, uSunCol: U.uSunCol, uSunI: { value: 1 }, uNight: U.uNight, uLampTex: U.uLampTex, uLampRect: U.uLampRect, uLampCol: U.uLampCol };
-  const mat = patchMaterial(new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide }), { key: 'leaf', vPars: LEAF_V, vBegin: LEAF_VB, vEnd: `vWPos = (modelMatrix * vec4(transformed, 1.0)).xyz;`, fPars: LEAF_F, fAlbedo: LEAF_FA, fEmissive: LEAF_FE, fFinal: `gl_FragColor.a = vViewPosition.z;` }, uni);
+  const mat = patchMaterial(new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide }), { key: 'leaf', vPars: LEAF_V, vBegin: LEAF_VB, vEnd: `vWPos = (modelMatrix * vec4(transformed, 1.0)).xyz;`, fPars: LEAF_F, fAlbedo: LEAF_FA, fEmissive: LEAF_FE, fFinal: F_SAFE + ` gl_FragColor.a = vViewPosition.z;` }, uni);
   const dep = patchMaterial(new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking, side: THREE.DoubleSide }), { key: 'leafD', vPars: LEAF_V, vBegin: LEAF_VB, fPars: LEAF_F, fMap: `{ float tone; if (leafMask(vLuv, vPar.x, vPar.y, tone) < 0.5) discard; }` }, uni);
   return { mat, dep, uni };
 }

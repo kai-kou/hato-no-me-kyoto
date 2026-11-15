@@ -125,7 +125,9 @@ const F_AO = `{ float aoK = mix(1.0, hAO, 0.86); reflectedLight.indirectDiffuse 
   reflectedLight.indirectSpecular *= aoK;
 #endif
 }`;
-const F_FINAL = `gl_FragColor.a = vViewPosition.z;`;
+// every material ends here. A mirror-like highlight (a pigeon's eye in the sun) can exceed what a half-float buffer holds; on a real GPU that pixel becomes infinite, and the depth of field then spreads it into a black square. Keep the colour finite.
+export const F_SAFE = `if (!(dot(gl_FragColor.rgb, gl_FragColor.rgb) >= 0.0)) gl_FragColor.rgb = vec3(0.0); gl_FragColor.rgb = min(gl_FragColor.rgb, vec3(64.0));`;
+const F_FINAL = F_SAFE + ` gl_FragColor.a = vViewPosition.z;`;
 // wet ground: darker, glossier, planar reflection by Fresnel
 const F_WET_ROUGH = `#ifdef STANDARD
   roughnessFactor = mix(roughnessFactor, 0.06, hWetK);
@@ -394,7 +396,7 @@ export class Env {
             vec3 lit = uSunCol * uSunI * 0.30 * (0.5 + 2.4 * pow(mu, 5.0)) + uHor * 0.75 + uZen * 0.35; vec3 dark = uZen * 0.55 + uHor * 0.30; vec3 cc = mix(lit, dark, thick * 0.75) + vec3(0.02, 0.022, 0.03) * uNight;
             col = mix(col, cc, c * ss(0.005, 0.16, e) * 0.92); }
           col = mix(col, uHor * 0.55, ss(0.0, -0.3, e));
-          gl_FragColor = vec4(col, 1.0e4); }` }));
+          gl_FragColor = vec4(min(col, vec3(64.0)), 1.0e4); }` }));
     this.sky.frustumCulled = false; this.sky.renderOrder = -1000; scene.add(this.sky);
     this.setHour(this.hour);
   }
@@ -589,7 +591,7 @@ export class World {
           float fo = texture2D(uNoise, (p - flow * uTime * spd * 1.3) * vec2(1.6, 0.5)).r; float foam = ss(0.045, 0.11, slope) * ss(0.38, 0.62, fo) + (1.0 - ss(0.0, 0.035, depth)) * ss(0.45, 0.7, fo) * 0.6;
           col = mix(col, (uAmb * 1.7 + uSunCol * uSunI * max(uSunDir.y, 0.0) * 0.5) * vec3(0.9, 0.93, 0.95), clamp(foam, 0.0, 0.85));
           col = mix(uFogCol, col, exp(-uFogD * uFogD * vDepth * vDepth));
-          gl_FragColor = vec4(col, vDepth); }` });
+          gl_FragColor = vec4(col, vDepth); ${F_SAFE} }` });
     const m = new THREE.Mesh(g, mat); m.matrixAutoUpdate = false; m.frustumCulled = false; m.userData.water = true; this.water = m; this.scene.add(m);
   }
   setHour(h) { this.env.setHour(h); if (this.lampGlow) { this.lampGlow.material.uniforms.uOn.value = this.env.lampOn; this.lampGlow.visible = this.env.lampOn > 0.01; } }

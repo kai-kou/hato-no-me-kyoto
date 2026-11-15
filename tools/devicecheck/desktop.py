@@ -25,6 +25,9 @@ try:
             try:
                 pg.goto(url(a.port, a.target, label, query, a.settle, a.samples), timeout=120000)
                 r = wait_report(a.out, rid, 330)
+                if r is None:
+                    try: print('  page state:', pg.evaluate("JSON.stringify({app: !!window.__app, ready: window.__app && window.__app.ready, frames: window.__app && window.__app.frames, stage: window.__app && window.__app.stage, err: (document.getElementById('err') || {}).textContent})"), flush=True)
+                    except Exception as e: print('  page state unavailable:', str(e)[:160], flush=True)
                 print(rid, 'no report' if r is None else r.get('failed') or '%s ms  %s' % (r.get('median'), (r.get('gpu') or {}).get('renderer')), flush=True)
                 try: pg.screenshot(path=os.path.join(a.out, rid + '.png'), timeout=60000)
                 except Exception as e: print('  screenshot failed:', str(e)[:120])

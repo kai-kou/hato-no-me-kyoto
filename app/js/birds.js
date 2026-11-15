@@ -2,7 +2,7 @@
 import * as THREE from './three.module.min.js';
 import { buildPigeonGeometry, RIG, BONE, NB, mirrorQ } from './birdgeo.js';
 import { patchMaterial, GLSL_NOISE, GLSL_BSH } from './util.js';
-import { U } from './world.js';
+import { U, F_SAFE } from './world.js';
 
 const TW = NB * 2 + 2; // texels per bird: 15 bones x (quat, trans) + 2 parameter texels
 const V_PARS = `
@@ -156,7 +156,7 @@ export class Birds {
         vec3 sky = mix(uHor, uZen, clamp(reflect(-Vn, normal).y * 0.5 + 0.5, 0.0, 1.0));   /* the barbules mirror the sky at the angle they are seen at, and the sun around the half vector (they are not all parallel: a wide lobe) */
         totalEmissiveRadiance += bIrid * (1.0 - uNight) * (bFilm(nv, bFilmW) * sky * uIrK.x + bFilm(max(dot(Lv, Hh), 0.0), bFilmW) * uSunCol * pow(nh, 9.0) * nl * hSunK * uIrK.y); }
       { vec2 luv = (vWPos.xz - uLampRect.xy) * uLampRect.zw; vec4 lt = texture2D(uLampTex, luv); float gy = lt.g * 16.0 - 8.0; totalEmissiveRadiance += diffuseColor.rgb * uLampCol * (lt.r * lt.r) * (1.0 - ss(0.5, 6.5, vWPos.y - gy)) * uNight * 1.25; float fz = pow(1.0 - clamp(dot(normal, normalize(vViewPosition)), 0.0, 1.0), 2.4); totalEmissiveRadiance += diffuseColor.rgb * (uHor + 0.12) * fz * 0.5 * (1.0 - uNight) * step(vPat.z, 2.5); totalEmissiveRadiance += diffuseColor.rgb * (uHor * 0.5 + 0.02) * bTrans * (1.0 - uNight); }`,
-      fFinal: `gl_FragColor.a = vViewPosition.z;` }, uni);
+      fFinal: F_SAFE + ` gl_FragColor.a = vViewPosition.z;` }, uni);
     const depthHooks = { key: 'birdD', vPars: V_PARS, vBegin: `{ vec3 dn = vec3(0.0, 1.0, 0.0); birdSkin(transformed, dn); vPat = aPat; }` };
     this.mesh = new THREE.InstancedMesh(geo, this.mat, count); this.mesh.frustumCulled = false; this.mesh.castShadow = (Q.shadowEvery || 1) === 1; this.mesh.receiveShadow = true;
     this.depthMat = this.mesh.customDepthMaterial = patchMaterial(new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking, side: THREE.DoubleSide }), depthHooks, { uBones: { value: this.tex }, uHideOn: { value: 0 } }); this.mesh.layers.enable(1);
@@ -211,7 +211,7 @@ export function newPose() { return { x: 0, y: 0, z: 0, yaw: 0, pitch: 0.45, roll
 // Close-range shadows for the birds: a tight sun-aligned depth map (crisp feet / wing shadows) and a contact-occlusion map seen from below.
 export class BirdShadow {
   constructor(renderer, scene, birds, Q) {
-    this.r = renderer; this.scene = scene; this.birds = birds; this.Q = Q; const S = Q.bsh || 0, A = Q.bao || 256; this.S = S; this.A = A;
+    this.r = renderer; this.scene = scene; this.birds = birds; this.Q = Q; const S = new URLSearchParams(location.search).get('nobsh') ? 0 : Q.bsh || 0, A = Q.bao || 256;   /* ?nobsh=1: no shadow map for the birds (for telling apart what darkens the ground on a device) */ this.S = S; this.A = A;
     if (S) { const dt = new THREE.DepthTexture(S, S); dt.compareFunction = THREE.LessEqualCompare; dt.minFilter = dt.magFilter = THREE.LinearFilter; this.rt = new THREE.WebGLRenderTarget(S, S, { depthTexture: dt, depthBuffer: true, minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter, generateMipmaps: false }); U.uBSh.value = dt; }
     this.ao = new THREE.WebGLRenderTarget(A, A, { depthBuffer: true, minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter, generateMipmaps: false }); U.uBAO.value = this.ao.texture;
     this.cam = new THREE.OrthographicCamera(-1, 1, 1, -1, 1, 90); this.cam.layers.set(1); this.camA = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.5, 60); this.camA.layers.set(1);
