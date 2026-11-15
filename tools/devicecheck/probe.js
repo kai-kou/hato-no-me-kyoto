@@ -30,9 +30,14 @@
   const iv = setInterval(() => { const a = window.__app, dt = performance.now() - t0;
     if (!a || !a.ready || !(a.frames > 2)) { if (dt > 240000) { clearInterval(iv); post({ failed: 'not ready after 240 s', stage: a && a.stage || null, gpu: G, text: (document.getElementById('err') || {}).textContent || '' }); } return; }
     clearInterval(iv); const load = Math.round(dt) / 1000; document.body.classList.add('started'); const ms = [];
-    setTimeout(() => { const s = setInterval(() => { const S = a.S; if (S.ms) ms.push(+S.ms.toFixed(2));
+    // where the watched bird is on the screen, once a second: a view that has lost its subject shows up as numbers, not only in a picture
+    const track = [], where = () => { try { const S = a.S, b = a.flock.B[S.focus], P = b.pose, c = a.camera, e = c.matrixWorldInverse.elements, p = c.projectionMatrix.elements, x = P.x, y = P.y + 0.05, z = P.z;
+      const vx = e[0] * x + e[4] * y + e[8] * z + e[12], vy = e[1] * x + e[5] * y + e[9] * z + e[13], vz = e[2] * x + e[6] * y + e[10] * z + e[14], w = p[3] * vx + p[7] * vy + p[11] * vz + p[15], o = a.ORB && a.ORB[S.mode === 'over' ? 'over' : 'tele'] || {};
+      return { t: +S.t.toFixed(1), ndc: [+((p[0] * vx + p[8] * vz) / w).toFixed(2), +((p[5] * vy + p[9] * vz) / w).toFixed(2)], depth: +(-vz).toFixed(2), air: !!b.air, st: b.st, turn: S.turnN | 0, hid: S.hid | 0, blk: +(S.blk || 0).toFixed(1), airK: +(S.airK || 0).toFixed(2),
+        orb: [o.yaw, o.pitch, o.dist].map(v => +(+v || 0).toFixed(2)), bird: [x, y, z].map(v => +v.toFixed(2)), cam: [c.position.x, c.position.y, c.position.z].map(v => +v.toFixed(2)), fov: +c.fov.toFixed(1) }; } catch (e) { return { error: String(e.message || e).slice(0, 120) }; } };
+    setTimeout(() => { const s = setInterval(() => { const S = a.S; if (S.ms) ms.push(+S.ms.toFixed(2)); if (S.mode !== 'eye') track.push(where());
       if (ms.length >= N || performance.now() - t0 > 200000) { clearInterval(s); const i = a.renderer.info.render, c = a.renderer.domElement, so = ms.slice().sort((x, y) => x - y);
         let audio = null; try { const AC = window.AudioContext || window.webkitAudioContext; audio = AC ? 'available' : 'missing'; } catch (e) { }
         post({ gpu: G, load, ms, median: so.length ? so[so.length >> 1] : null, max: so.length ? so[so.length - 1] : null, drs: a.drs, scale: a.Q.scale, tier: a.Q.tier, lite: !!S.lite, calls: i.calls, tris: i.triangles,
-          canvas: [c.width, c.height], mode: S.mode, frames: a.frames, peopleAsset: a.peopleAsset || 0, lost: !!a.lost, probeOff: !!(a.post && a.post.noProbe), audio }); } }, 1050); }, settle * 1000); }, 250);
+          canvas: [c.width, c.height], track, mode: S.mode, frames: a.frames, peopleAsset: a.peopleAsset || 0, lost: !!a.lost, probeOff: !!(a.post && a.post.noProbe), audio }); } }, 1050); }, settle * 1000); }, 250);
 })();

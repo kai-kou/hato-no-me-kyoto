@@ -212,7 +212,7 @@ export function newPose() { return { x: 0, y: 0, z: 0, yaw: 0, pitch: 0.45, roll
 export class BirdShadow {
   constructor(renderer, scene, birds, Q) {
     this.r = renderer; this.scene = scene; this.birds = birds; this.Q = Q; const S = new URLSearchParams(location.search).get('nobsh') ? 0 : Q.bsh || 0, A = Q.bao || 256;   /* ?nobsh=1: no shadow map for the birds (for telling apart what darkens the ground on a device) */ this.S = S; this.A = A;
-    if (S) { const dt = new THREE.DepthTexture(S, S); dt.compareFunction = THREE.LessEqualCompare; dt.minFilter = dt.magFilter = THREE.LinearFilter; this.rt = new THREE.WebGLRenderTarget(S, S, { depthTexture: dt, depthBuffer: true, minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter, generateMipmaps: false }); U.uBSh.value = dt; }
+    if (S) { const dt = new THREE.DepthTexture(S, S); dt.minFilter = dt.magFilter = THREE.NearestFilter; this.rt = new THREE.WebGLRenderTarget(S, S, { depthTexture: dt, depthBuffer: true, minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter, generateMipmaps: false }); U.uBSh.value = dt; }
     this.ao = new THREE.WebGLRenderTarget(A, A, { depthBuffer: true, minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter, generateMipmaps: false }); U.uBAO.value = this.ao.texture;
     this.cam = new THREE.OrthographicCamera(-1, 1, 1, -1, 1, 90); this.cam.layers.set(1); this.camA = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.5, 60); this.camA.layers.set(1);
     this.bias = new THREE.Matrix4().set(0.5, 0, 0, 0.5, 0, 0.5, 0, 0.5, 0, 0, 0.5, 0.5, 0, 0, 0, 1); this._c = new THREE.Color(); this._v = new THREE.Vector3();

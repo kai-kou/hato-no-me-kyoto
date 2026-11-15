@@ -28,6 +28,13 @@ for t, rs in R.items():
         m = r.get('median')
         L.append('| %s | %s ms | %s ms | %s fps | %d%% | %s | %s | %s | %s | %s | %s 秒 | %d |' % (name, m, r.get('max'), round(1000 / m) if m else '-', round(r['scale'] * r['drs'] * 100), 'x'.join(str(v) for v in r['canvas']),
                  {'high': '高', 'mid': '中', 'low': '軽'}.get(r['tier'], r['tier']), 'あり' if r['lite'] else 'なし', r['calls'], format(r['tris'], ','), r['load'], len(r.get('errs') or [])))
+    lost = []
+    for label, q in CASES + DIAG:
+        r = rs.get(label) or {}; tr = [x for x in (r.get('track') or []) if 'ndc' in x]
+        if not tr or r.get('mode') in ('eye', 'cine'): continue
+        out = [x for x in tr if abs(x['ndc'][0]) > 1 or abs(x['ndc'][1]) > 1 or x['depth'] <= 0]
+        if out: lost.append('%s: %d/%d 回、注視中のハトが画面の外（例 画面座標 %s、距離 %s m、飛行中=%s、視点の選び直し %d 回）' % (label, len(out), len(tr), out[-1]['ndc'], out[-1]['depth'], out[-1]['air'], out[-1]['turn']))
+    L += ['', '注視中のハトの位置: ' + ('すべての計測時点で画面内' if not lost else '**画面の外に出た時点あり**')] + ['- ' + x for x in lost]
     errs = sorted({e for k, r in rs.items() if not k.startswith('_') for e in (r.get('errs') or [])})
     if errs: L += ['', 'エラー:'] + ['- `%s`' % e.replace('`', "'") for e in errs[:10]]
     L.append('')

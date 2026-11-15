@@ -437,7 +437,7 @@ function makeNoiseTex() {
 // ------------------------------------------------------------------ world
 export class World {
   constructor(renderer, scene, Q) { this.r = renderer; this.scene = scene; this.Q = Q; this.meshes = []; this.city = new THREE.Group(); scene.add(this.city); U.uNoise.value = makeNoiseTex();
-    const dt = new THREE.DepthTexture(2, 2); dt.compareFunction = THREE.LessEqualCompare; dt.minFilter = dt.magFilter = THREE.LinearFilter; U.uBSh.value = dt; }
+    const dt = new THREE.DepthTexture(2, 2); dt.minFilter = dt.magFilter = THREE.NearestFilter; U.uBSh.value = dt; }
   async load(onProg, stage = async () => { }) {
     const Q = this.Q, P = (k, w) => (n, t) => onProg(k, t ? n / t : 0, w);
     const [meta, navPak] = await Promise.all([fetch(asset('d/meta.json')).then(r => r.json()), loadPak('d/nav.txt', P('nav', 3.0), 3024688)]);

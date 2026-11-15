@@ -89,15 +89,17 @@ float fbm2(vec2 p){ return vnoise(p) * 0.6 + vnoise(p * 2.13 + 17.1) * 0.3 + vno
 export async function bitmap(blob) { try { return await createImageBitmap(blob, { premultiplyAlpha: 'none', colorSpaceConversion: 'none' }); } catch (e) { return await createImageBitmap(blob); } }
 // close-range bird shadows: sun-aligned depth map (hardware PCF) + contact occlusion map rendered from below
 export const GLSL_BSH = `
-uniform highp sampler2DShadow uBSh; uniform sampler2D uBAO; uniform mat4 uBShM, uBAOM; uniform vec4 uBShP, uBAOP;
+uniform highp sampler2D uBSh; uniform sampler2D uBAO; uniform mat4 uBShM, uBAOM; uniform vec4 uBShP, uBAOP;
 float hSunK = 1.0;
 float hUnp(vec4 v){ return dot(v, (255.0 / 256.0) / vec4(16777216.0, 65536.0, 256.0, 1.0)); }
 float hBirdSun(vec3 wp){
   if (uBShP.x < 0.5) return 1.0;
   vec3 c = (uBShM * vec4(wp, 1.0)).xyz; vec2 e = min(c.xy, 1.0 - c.xy); float m = min(e.x, e.y); if (m <= 0.0 || c.z >= 1.0 || c.z <= 0.0) return 1.0;
   float d = c.z - uBShP.z, t = uBShP.y * 0.8;
-  float s = texture(uBSh, vec3(c.xy + vec2(t, t * 0.35), d)) + texture(uBSh, vec3(c.xy + vec2(-t * 0.35, t), d)) + texture(uBSh, vec3(c.xy + vec2(-t, -t * 0.35), d)) + texture(uBSh, vec3(c.xy + vec2(t * 0.35, -t), d));
-  return mix(1.0, s * 0.25, ss(0.0, 0.06, m));
+  // the depth is compared here, not by a comparison sampler: Safari in the iOS Simulator answers 0 from sampler2DShadow whatever is asked (measured: tools/devicecheck), which put the whole ground in the birds' shadow
+  #define HBS(o) step(d, texture(uBSh, c.xy + (o)).r)
+  float s = HBS(vec2(t, t * 0.35)) + HBS(vec2(-t * 0.35, t)) + HBS(vec2(-t, -t * 0.35)) + HBS(vec2(t * 0.35, -t)) + HBS(vec2(t * 0.4, -t * 0.15)) + HBS(vec2(t * 0.15, t * 0.4)) + HBS(vec2(-t * 0.4, t * 0.15)) + HBS(vec2(-t * 0.15, -t * 0.4));
+  return mix(1.0, s * 0.125, ss(0.0, 0.06, m));
 }
 float hBirdAO(vec3 wp, float up){
   if (uBAOP.x < 0.5 || up < 0.35) return 1.0;
